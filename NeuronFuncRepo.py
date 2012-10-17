@@ -5,65 +5,76 @@ import scipy.io as sio
 
 ## Data Preprocessing ##
 ########################
-def GetData(DIRECTORY = '/120511c3.mat', SaveName = 'Data\RebeccaProcessedData.npz'):
+def GetData(DIRECTORY = '/120511c3.mat', SaveName = 'Rebecca'):
 	
 	try:
 		Data = np.load('Data\RebeccaProcessedData.npz')
 		
 	except IOError:
+		Data = []
 		print 'No preprocessed data. Now trying raw data.'
 
+	if Data == []:
+		RawData = sio.loadmat(DIRECTORY)
+		SamplingRate = 10000 # in Hz
+		Volt = RawData['V'][0][0]
+		Stim = RawData['stim']
+		RepLoc = RawData['rep1']
 
-	RawData = sio.loadmat(DIRECTORY)
-	SamplingRate = 10000 # in Hz
-	Volt = RawData['V'][0][0]
-	Stim = RawData['stim']
-	RepLoc = RawData['rep1']
+		RepVolt = np.zeros((RepLoc.shape[1],Volt.shape[1]))
+		RepStim = np.zeros((RepLoc.shape[1],Volt.shape[1]))
 
-	RepVolt = np.zeros((RepLoc.shape[1],Volt.shape[1]))
-	RepStim = np.zeros((RepLoc.shape[1],Volt.shape[1]))
+		for i in range ( 0 , Stim.shape[1]):
+			RepVolt[:,i] = Volt[RepLoc , i]
+			RepStim[:,i] = Stim[RepLoc , i]
 
-	for i in range ( 0 , Stim.shape[1]):
-		RepVolt[:,i] = Volt[RepLoc , i]
-		RepStim[:,i] = Stim[RepLoc , i]
-
-	Data = 	{
-			'SamplingRate': SamplingRate,
-			'RawVolt': Volt,
-			'RawStim': Stim,
-			'RepLoc': RepLoc,
-			'RepVolt': RepVolt,
-			'RepStim': RepStim,
-			'name': 'Rebecca'
-			}
-	np.savez( SaveName, SamplingRate=SamplingRate, RawVolt=Volt, RawStim=Stim,
-			RepLoc=RepLoc, RepVolt=RepVolt, RepStim=RepStim)
+		Data = 	{
+				'SamplingRate': SamplingRate,
+				'RawVolt': Volt,
+				'RawStim': Stim,
+				'RepLoc': RepLoc,
+				'RepVolt': RepVolt,
+				'RepStim': RepStim,
+				'name': SaveName
+				}
+		np.savez('Data/' + SaveName + 'ProcessedData.npz', SamplingRate=SamplingRate, 
+				RawVolt=Volt, RawStim=Stim,
+				RepLoc=RepLoc, RepVolt=RepVolt, RepStim=RepStim, name=SaveName)
 		
 	return Data
 
 
 def GenModelData(Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
-				SaveName = 'ModelVoltage.npz'):
+				SaveName = 'Quad'):
 	"""
 	"""
-	INTSTEP = FindIntStep(Data)
-	
-	params = np.genfromtxt(params,delimiter=',')
-	
-	current = Data['RepStim']
-	ModelVolt = np.zeros((current.shape[0],current.shape[1]))
-	for i in range(0, current.shape[1]):
+	try:
+		Model = np.load('Data\ModelData.npz')
 		
-		ModelVolt[:,i] = model(params, current[:,i], INTSTEP)
-	
-	Model =	{
-			'SamplingRate': Data['SamplingRate'],
-			'RepStim': current,
-			'RepVolt': ModelVolt
-			}
-	
-	np.savez('/Data/' + SaveName, stim=current,volt=ModelVolt, 
-								SamplingRate=Data['SamplingRate'])
+	except IOError:
+		Model = []
+		print 'No preprocessed model data. Now trying raw data.'
+
+	if Model == []:
+		INTSTEP = FindIntStep(Data)
+		
+		params = np.genfromtxt(params,delimiter=',')
+		
+		current = Data['RepStim'] * 100.0
+		ModelVolt = np.zeros((current.shape[0],current.shape[1]))
+		for i in range(0, current.shape[1]):
+			
+			ModelVolt[:,i] = model(params, current[:,i], INTSTEP)
+		
+		Model =	{
+				'SamplingRate': Data['SamplingRate'],
+				'RepStim': current,
+				'RepVolt': ModelVolt,
+				'name': SaveName
+				}
+		
+		np.savez('Data/' + SaveName + 'modeldata.npz', stim=current,volt=ModelVolt, 
+									SamplingRate=Data['SamplingRate'], name = SaveName)
 	
 	return Model
 
