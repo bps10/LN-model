@@ -4,21 +4,21 @@ import scipy as sp
 import matplotlib.pylab as plt
 
 
-current = np.loadtxt('input.dat',unpack=True)
-voltage = np.loadtxt('voltage.dat',unpack=True)
+current = np.loadtxt('/Users/brians/Thalamus/EXP_GEN/input.dat',unpack=True)
+voltage = np.loadtxt('/Users/brians/Thalamus/EXP_GEN/voltage.dat',unpack=True)
 
-INTSTEP = 0.1 ## in msec
-STA_TIME = 200
+INTSTEP = 0.05 ## in msec
+STA_TIME = 180
 TIME = len(current)*INTSTEP ## in msec
 
 PLOT1 = 0
 PLOT3 = 0
 
-STAFILENAME = 'STA_May7.csv'
-RECORDFILENAME = 'DataRecord_May7.csv'
-COVMATRIX = 'CovMat_May7.csv'
-EIGVAL = 'EigVal_May7.csv'
-EIGVECT = 'EigVect_May7.csv'
+STAFILENAME = 'STA_May8.csv'
+RECORDFILENAME = 'DataRecord_May8.csv'
+COVMATRIX = 'CovMat_May8.csv'
+EIGVAL = 'EigVal_May8.csv'
+EIGVECT = 'EigVect_May8.csv'
 
 ######################
 #### STA ANALYSIS ####
@@ -36,29 +36,28 @@ def runs(bits):
     return run_starts, run_ends
 
 ## Create Files ##
-STA_CURRENT = np.zeros((len(current),int((STA_TIME/INTSTEP*2))))
-STA_VOLTAGE = np.zeros((len(current),int((STA_TIME/INTSTEP*2))))
+STA_CURRENT = np.zeros((len(current)*3,int((STA_TIME/INTSTEP*2))))
+STA_VOLTAGE = np.zeros((len(current)*3,int((STA_TIME/INTSTEP*2))))
 
-Data_mV_Record = np.zeros((500*len(current),int((STA_TIME/INTSTEP*2))))
-Data_C_Record= np.zeros((500*len(current),int((STA_TIME/INTSTEP*2))))
-Prior_Rec = np.zeros((500*len(current),int((STA_TIME/INTSTEP*2))))
+Data_mV_Record = np.zeros((500*len(current)*3,int((STA_TIME/INTSTEP*2))))
+Data_C_Record= np.zeros((500*len(current)*3,int((STA_TIME/INTSTEP*2))))
+Prior_Rec = np.zeros((500*len(current)*3,int((STA_TIME/INTSTEP*2))))
     
 q = 0
 LOC_IND = 0
+CUR_IND = 0
 ON_LOC = np.array([0,409900,815000])
 OFF_LOC = np.array([355000,759900,1165000])
 
-
-for i in range(0,len(current)):
-    a = np.array([current[i][ON_LOC[0]:OFF_LOC[0]],current[i][ON_LOC[1]:OFF_LOC[1]],current[i][ON_LOC[2]:OFF_LOC[2]]])
-    CURRENT = np.append(a[0],a[1])
-    CURRENT = np.append(CURRENT,a[2])
-
-    a = np.array([voltage[i][ON_LOC[0]:OFF_LOC[0]],voltage[i][ON_LOC[1]:OFF_LOC[1]],voltage[i][ON_LOC[2]:OFF_LOC[2]]])
-    voltage_Data = np.append(a[0],a[1])
-    voltage_Data = np.append(CURRENT,a[2])
-    del(a)
-    
+for i in range(0,len(current)*3):
+    CURRENT = current[CUR_IND][ON_LOC[LOC_IND]:OFF_LOC[LOC_IND]]
+    voltage_Data = voltage[CUR_IND][ON_LOC[LOC_IND]:OFF_LOC[LOC_IND]]
+    if LOC_IND<2: 
+	LOC_IND+=1
+    else: 
+        LOC_IND=0
+	CUR_IND+=1
+ 
     Spikes_Data = voltage_Data > 0
     Spikes_Data = runs(Spikes_Data)
 
@@ -74,7 +73,7 @@ for i in range(0,len(current)):
         Peak = voltage_Data[Peak]
         Height = np.argmax(Peak)
         Loc = Height + Spikes_Data[0][j-q]
-        RandLoc = np.random.random_integers(STA_TIME/INTSTEP,(len(CURRENT)-(STA_TIME/INTSTEP)))
+        RandLoc = np.random.random_integers(7000,(len(CURRENT)-(STA_TIME/INTSTEP)))
         Range = np.arange(Loc-(STA_TIME/INTSTEP),Loc+(STA_TIME/INTSTEP), dtype=int)
         RandRANGE = np.arange(RandLoc-(STA_TIME/INTSTEP),RandLoc+(STA_TIME/INTSTEP), dtype=int)
         
@@ -85,7 +84,7 @@ for i in range(0,len(current)):
     
 Data_C_Record = Data_C_Record[np.any(Data_C_Record,1),:]
 Data_mV_Record = Data_mV_Record[np.any(Data_mV_Record,1),:]
-Prior_Rec = Prior_Rec[np.any(Prior_Rec,1),:]
+Prior_Rec = Prior_Rec[0:len(Data_mV_Record),:]
 
 Data_Num_Spikes = len(Data_mV_Record)
 print '# Data Spikes:', Data_Num_Spikes
@@ -97,19 +96,19 @@ np.savetxt(STAFILENAME,Data_STA_Current,delimiter=',')
 np.savetxt(RECORDFILENAME,Data_C_Record,delimiter=',')
 np.savetxt('PriorRecord.csv',Prior_Rec,delimiter=',')
 
-fig = plt.figure(figsize=(12,8))
-X = np.arange(-STA_TIME/INTSTEP,STA_TIME/INTSTEP,dtype=float)*INTSTEP
-ax = fig.add_subplot(111)
-ax.plot(X[0:(STA_TIME/INTSTEP)+50], Data_STA_Current[0:(STA_TIME/INTSTEP)+50],
-            linewidth=3, color='k')
-plt.xticks(fontsize = 20)
-plt.yticks(fontsize = 20)
-plt.ylabel('current(pA)', fontsize = 20)
+#fig = plt.figure(figsize=(12,8))
+#X = np.arange(-STA_TIME/INTSTEP,STA_TIME/INTSTEP,dtype=float)*INTSTEP
+#ax = fig.add_subplot(111)
+#ax.plot(X[0:(STA_TIME/INTSTEP)+50], Data_STA_Current[0:(STA_TIME/INTSTEP)+50],
+#            linewidth=3, color='k')
+#plt.xticks(fontsize = 20)
+#plt.yticks(fontsize = 20)
+#plt.ylabel('current(pA)', fontsize = 20)
 #plt.legend(('data'), loc='upper right')
 
-plt.show()
-plt.savefig('STA.png')
-plt.close()
+#plt.show()
+#plt.savefig('STA.png')
+#plt.close()
 
 
 ################
