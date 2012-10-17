@@ -1,83 +1,160 @@
 import numpy as np
 import matplotlib.pylab as plt
+import NeuronModels as models
+import scipy.io as sio
+
+## Data Preprocessing ##
+########################
+def GetData(DIRECTORY = '/120511c3.mat', SaveName = 'Data\RebeccaProcessedData.npz'):
+	
+	try:
+		Data = np.load('Data\RebeccaProcessedData.npz')
+		
+	except IOError:
+		print 'No preprocessed data. Now trying raw data.'
 
 
-## Models ##
-def EXPmodel(param):
-    
-    VOLTAGE = np.zeros(len(CURRENT))
-    vDOT = -70 ## V naught in mV
-    u1DOT = 0 ## u1 naught in a.u.
-    El = -70 ## mV
-    gL = 20 ##nS
-    
-    a_1 = param[0]
-    d_1 = param[1]
-    vRESET = param[2]
-    vTHR = param[3]
-    DELTA_T = param[4]
-    CAP = param[5]
-    TauU = param[6]
-    
-    for i in range(0,len(CURRENT)):
+	RawData = sio.loadmat(DIRECTORY)
+	SamplingRate = 10000 # in Hz
+	Volt = RawData['V'][0][0]
+	Stim = RawData['stim']
+	RepLoc = RawData['rep1']
 
-        vDOT += (-gL*(vDOT - El) + gL*DELTA_T*np.exp((vDOT - vTHR)/DELTA_T) -
-                 (u1DOT) + CURRENT[i])/CAP*INTSTEP
+	RepVolt = np.zeros((RepLoc.shape[1],Volt.shape[1]))
+	RepStim = np.zeros((RepLoc.shape[1],Volt.shape[1]))
 
-        if vDOT >= 35:
-            VOLTAGE[i] = 35 ## vPEAK
-            tPEAK = INTSTEP*((VOLTAGE[i] - VOLTAGE[i-1])/(vDOT - VOLTAGE[i-1]))
-            u1RES =  (a_1*(VOLTAGE[i] - El) - u1DOT)/TauU*tPEAK
-            u1DOT = u1RES + d_1
-            vDOT = vRESET
-            if i < len(CURRENT)-1:
-                i += 1
-        
-        if vDOT < -150:
-            VOLTAGE = np.array([np.nan])
-            return VOLTAGE
+	for i in range ( 0 , Stim.shape[1]):
+		RepVolt[:,i] = Volt[RepLoc , i]
+		RepStim[:,i] = Stim[RepLoc , i]
 
-        u1DOT += (a_1*(vDOT - El) - u1DOT)/TauU*INTSTEP
-        
-        VOLTAGE[i] = vDOT
-    return VOLTAGE
+	Data = 	{
+			'SamplingRate': SamplingRate,
+			'RawVolt': Volt,
+			'RawStim': Stim,
+			'RepLoc': RepLoc,
+			'RepVolt': RepVolt,
+			'RepStim': RepStim,
+			'name': 'Rebecca'
+			}
+	np.savez( SaveName, SamplingRate=SamplingRate, RawVolt=Volt, RawStim=Stim,
+			RepLoc=RepLoc, RepVolt=RepVolt, RepStim=RepStim)
+		
+	return Data
 
 
+def GenModelData(Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
+				SaveName = 'ModelVoltage.npz'):
+	"""
+	"""
+	INTSTEP = FindIntStep(Data)
+	
+	params = np.genfromtxt(params,delimiter=',')
+	
+	current = Data['RepStim']
+	ModelVolt = np.zeros((current.shape[0],current.shape[1]))
+	for i in range(0, current.shape[1]):
+		
+		ModelVolt[:,i] = model(params, current[:,i], INTSTEP)
+	
+	Model =	{
+			'SamplingRate': Data['SamplingRate'],
+			'RepStim': current,
+			'RepVolt': ModelVolt
+			}
+	
+	np.savez('/Data/' + SaveName, stim=current,volt=ModelVolt, 
+								SamplingRate=Data['SamplingRate'])
+	
+	return Model
 
-def QUADmodel(param, CURRENT):
-    
-    u1DOT = 0
-    u2DOT = 0
-    vDOT = 0
-    CAP = 50.0 ## in pF
-    vDOT = -70 ## V naught in mV
-    vRESTING = -70
-    VOLTAGE = np.zeros(len(CURRENT))
-    b_1 = param[7] # if vDOT < param[5] else 0
-    b_2 = -param[5]    
-    a_1 = param[0]
-    a_2 = param[1]
-    d_1 = param[2]
-    d_2 = param[3]
-    vRESET = param[8]
-    vTHR = param[4]
+	
+	
+######################
+#### STA ANALYSIS ####
+######################
 
-    for i in range(0,len(CURRENT)):
-    
-        k_ = param[6] if vDOT < param[4] else 2
-        
-        vDOT += (k_*(vDOT - vRESTING)*(vDOT - vTHR) - u1DOT - u2DOT +
-                 CURRENT[i])*INTSTEP/CAP
-        u1DOT += (a_1*(b_1*(vDOT - vRESTING) - u1DOT))*INTSTEP
-        u2DOT += (a_2*(b_2*(vDOT - vRESTING) - u2DOT))*INTSTEP
-    
-        if vDOT >= 35 + (0.1*(u1DOT+u2DOT)):
-            vDOT = vRESET - (0.1*(u1DOT+u2DOT))
-            u1DOT = u1DOT + d_1
-            u2DOT = u2DOT + d_2
+def FindIntStep(Data):
+	"""
+	convert kHZ into Intstep in msec
+	"""
+	return (Data['SamplingRate']**-1)*1000
+	
+def STA_Analysis(Data, STA_TIME = 200):
+	
+	INTSTEP = FindIntStep(Data)## in msec
+	current = Data['RepStim']
+	voltage = Data['RepVolt']
+	
+	TIME = len(current)*INTSTEP
 
-        VOLTAGE[i] = vDOT
-    return VOLTAGE
+	## Create Files ##
+	STA_CURRENT = np.zeros((current.shape[1]*1500,int((STA_TIME/INTSTEP*2))))
+	STA_VOLTAGE = np.zeros((current.shape[1]*1500,int((STA_TIME/INTSTEP*2))))
+	
+	Data_mV_Record = np.zeros((current.shape[1]*1500,int((STA_TIME/INTSTEP*2))))
+	Data_C_Record= np.zeros((current.shape[1]*1500,int((STA_TIME/INTSTEP*2))))
+	Prior_Rec = np.zeros((current.shape[1]*1500,int((STA_TIME/INTSTEP*2))))
+
+	CUR_IND = 0
+	q = 0
+	for i in range(0,current.shape[1]):
+	
+		CURRENT = current[:,i]
+		voltage_Data = voltage[:,i]
+		
+		CUR_IND+=1
+	 
+		Spikes_Data = voltage_Data > 0
+		Spikes_Data = runs(Spikes_Data)
+
+		## Find Spikes that do not fall too close to the beginning or end
+		S_beg_Data = np.where(Spikes_Data[0] > int(STA_TIME/INTSTEP*2))
+		S_end_Data = np.where(Spikes_Data[0] < (len(voltage_Data)-(int(STA_TIME/INTSTEP*2)+20)))
+		Length_Data = np.arange(min(S_beg_Data[0]),max(S_end_Data[0])+1)
+		Spikes_Data = Spikes_Data[0][Length_Data],Spikes_Data[1][Length_Data]
+
+		for j in range(q,q+len(Spikes_Data[0])):
+				   
+			Peak = np.arange(Spikes_Data[0][j-q],Spikes_Data[1][j-q])
+			Peak = voltage_Data[Peak]
+			Height = np.argmax(Peak)
+			Loc = Height + Spikes_Data[0][j-q]
+			RandLoc = np.random.random_integers(7000,(len(CURRENT)-(STA_TIME/INTSTEP)))
+			Range = np.arange(Loc-(STA_TIME/INTSTEP),Loc+(STA_TIME/INTSTEP), dtype=int)
+			RandRANGE = np.arange(RandLoc-(STA_TIME/INTSTEP),RandLoc+(STA_TIME/INTSTEP), dtype=int)
+			
+			Data_mV_Record[j,:] = voltage_Data[Range]
+			Data_C_Record[j,:] = CURRENT[Range]
+			Prior_Rec[j,:] = CURRENT[RandRANGE]
+		q += len(Spikes_Data[0])
+	
+	
+	Data_C_Record = Data_C_Record[np.any(Data_C_Record,1),:]
+	Data_mV_Record = Data_mV_Record[np.any(Data_mV_Record,1),:]
+	Prior_Rec = Prior_Rec[0:len(Data_mV_Record),:]
+		
+	Data_Num_Spikes = len(Data_mV_Record)
+	print '# Data Spikes:', Data_Num_Spikes
+
+	Data_STA_Current = Data_C_Record.mean(0)
+	Data_STA_Voltage = Data_mV_Record.mean(0)
+	
+	STA = 	{
+			'STA_TIME': STA_TIME,
+			'INTSTEP': INTSTEP,
+			'spikenum': Data_Num_Spikes,
+			'stimRecord': Data_C_Record,
+			'voltRecord': Data_mV_Record,
+			'STAstim': Data_STA_Current,
+			'STAvolt': Data_STA_Voltage
+			}
+	np.savez('/Data/' + Data['name'] + 'STA.npz', stimRecord=Data_C_Record, 
+			voltRecord=Data_mV_Record,STAstim=Data_STA_Current,STAvolt=Data_STA_Voltage)
+	
+	return STA
+
+
+
 
 
 
@@ -120,6 +197,8 @@ def runs(bits):
     length = run_ends-run_starts
     return run_starts, run_ends
 
+## LNmodel functions ##
+	
 
 def Pspike_STA(x):
     out = STA_PDF(x)*Pspike/Prior_PDF(x)
