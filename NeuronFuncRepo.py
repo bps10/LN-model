@@ -1,15 +1,18 @@
+from __future__ import division
 import numpy as np
 import matplotlib.pylab as plt
-import NeuronModels as models
 import scipy.io as sio
+import numpy.linalg as lin
+import NeuronModels as models
+
 
 ## Data Preprocessing ##
 ########################
 def GetData(DIRECTORY = '/120511c3.mat', SaveName = 'Rebecca'):
 	
 	try:
-		Data = np.load('Data\RebeccaProcessedData.npz')
-		
+		Data = np.load('Data/' + SaveName + 'ProcessedData.npz')
+		print 'Successfully loaded {0} preprocessed data from file.'.format(SaveName)
 	except IOError:
 		Data = []
 		print 'No preprocessed data. Now trying raw data.'
@@ -37,9 +40,14 @@ def GetData(DIRECTORY = '/120511c3.mat', SaveName = 'Rebecca'):
 				'RepStim': RepStim,
 				'name': SaveName
 				}
-		np.savez('Data/' + SaveName + 'ProcessedData.npz', SamplingRate=SamplingRate, 
-				RawVolt=Volt, RawStim=Stim,
-				RepLoc=RepLoc, RepVolt=RepVolt, RepStim=RepStim, name=SaveName)
+		np.savez('Data/' + SaveName + 'ProcessedData.npz', 
+				SamplingRate=SamplingRate, 
+				RawVolt=Volt, 
+				RawStim=Stim,
+				RepLoc=RepLoc, 
+				RepVolt=RepVolt, 
+				RepStim=RepStim, 
+				name=SaveName)
 		
 	return Data
 
@@ -49,8 +57,8 @@ def GenModelData(Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
 	"""
 	"""
 	try:
-		Model = np.load('Data\ModelData.npz')
-		
+		Model = np.load('Data/' + SaveName + 'ModelProcessedData.npz')
+		print 'Successfully loaded {0} preprocessed model data from file.'.format(SaveName)
 	except IOError:
 		Model = []
 		print 'No preprocessed model data. Now trying raw data.'
@@ -60,21 +68,34 @@ def GenModelData(Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
 		
 		params = np.genfromtxt(params,delimiter=',')
 		
-		current = Data['RepStim'] * 100.0
+		current = Data['RawStim'] * 100.0
 		ModelVolt = np.zeros((current.shape[0],current.shape[1]))
 		for i in range(0, current.shape[1]):
 			
 			ModelVolt[:,i] = model(params, current[:,i], INTSTEP)
 		
+		RepModelVolt = np.zeros((Data['RepLoc'].shape[1],Data['RawVolt'].shape[1]))
+		RepStim = Data['RawStim']
+		for i in range ( 0 , Data['RawStim'].shape[1]):
+			RepModelVolt[:,i] = ModelVolt[Data['RepLoc'] , i]
+
+			
 		Model =	{
 				'SamplingRate': Data['SamplingRate'],
-				'RepStim': current,
-				'RepVolt': ModelVolt,
+				'RawStim': current,
+				'RawVolt': ModelVolt,
+				'RepStim': RepStim,
+				'RepVolt': RepModelVolt,
 				'name': SaveName
 				}
 		
-		np.savez('Data/' + SaveName + 'modeldata.npz', stim=current,volt=ModelVolt, 
-									SamplingRate=Data['SamplingRate'], name = SaveName)
+		np.savez('Data/' + SaveName + 'ModelProcessedData.npz',
+				RawStim=current,
+				RawVolt=ModelVolt,
+				RepStim = RepStim,
+				RepVolt = RepModelVolt,
+				SamplingRate=Data['SamplingRate'], 
+				name = SaveName)
 	
 	return Model
 
@@ -88,13 +109,14 @@ def FindIntStep(Data):
 	"""
 	convert kHZ into Intstep in msec
 	"""
-	return (Data['SamplingRate']**-1)*1000
+	return (Data['SamplingRate']**-1.0)*1000.0
+	
 	
 def STA_Analysis(Data, STA_TIME = 200):
 	
 	INTSTEP = FindIntStep(Data)## in msec
-	current = Data['RepStim']
-	voltage = Data['RepVolt']
+	current = Data['RawStim']
+	voltage = Data['RawVolt']
 	
 	TIME = len(current)*INTSTEP
 
@@ -150,28 +172,284 @@ def STA_Analysis(Data, STA_TIME = 200):
 	Data_STA_Current = Data_C_Record.mean(0)
 	Data_STA_Voltage = Data_mV_Record.mean(0)
 	
+	name = str(Data['name'])
 	STA = 	{
 			'STA_TIME': STA_TIME,
 			'INTSTEP': INTSTEP,
 			'spikenum': Data_Num_Spikes,
 			'stimRecord': Data_C_Record,
 			'voltRecord': Data_mV_Record,
+			'priorRecord': Prior_Rec,
 			'STAstim': Data_STA_Current,
-			'STAvolt': Data_STA_Voltage
+			'STAvolt': Data_STA_Voltage,
+			'name': name
 			}
-	np.savez('/Data/' + Data['name'] + 'STA.npz', stimRecord=Data_C_Record, 
-			voltRecord=Data_mV_Record,STAstim=Data_STA_Current,STAvolt=Data_STA_Voltage)
+	
+	
+	np.savez('Data/' + name + 'STA.npz', 
+			STA_TIME=STA_TIME,
+			INTSTEP=INTSTEP,
+			spikenum=Data_Num_Spikes,
+			stimRecord=Data_C_Record, 
+			voltRecord=Data_mV_Record,
+			priorRecord=Prior_Rec,
+			STAstim=Data_STA_Current,
+			STAvolt=Data_STA_Voltage,
+			name=name)
 	
 	return STA
 
 
+################
+###COVARIANCE### 
+################
+def FindCovariance(Data):
+	"""
+	"""
+	
+	Begin = 0
+	End = Data['STA_TIME']/Data['INTSTEP']
+
+	Data_C_spike = np.zeros((End,End))
+	C_prior = np.zeros((End,End))
 
 
+	STA = Data['STAstim'][Begin:End]
+	mat_STA = STA*STA[:,np.newaxis]*Data['spikenum']/(Data['spikenum']-1)
 
+	for i in range(0,Data['spikenum']):
+		a = Data['stimRecord'][i,Begin:End]
+		b = Data['priorRecord'][i,Begin:End]
+		
+		mat_spike = a*a[:,np.newaxis]
+		mat_prior = b*b[:,np.newaxis]
+		
+		
+		Data_C_spike += (mat_spike - mat_STA)
+		C_prior += mat_prior
+		
+	### FIND MEANS ###
+	Data_C_spike = Data_C_spike/(Data['spikenum']-1)
+	C_prior = C_prior/(Data['spikenum']-1)
+
+	### FIND DELTA COV ###
+	Data_C_delta = Data_C_spike - C_prior
+
+	### EigenValues, EigenVectors
+	Data_E, V = lin.eig(Data_C_delta)
+	I = np.argsort(Data_E)
+	Data_E = Data_E[I][:( Data['STA_TIME']/Data['INTSTEP'])]
+	Data_Vect = V[:,I][:,:( Data['STA_TIME']/Data['INTSTEP'])]
+
+	## needs to be reformatted this way for savez for some reason.
+	name = str(Data['name'])
+	STA_TIME = Data['STA_TIME']
+	INTSTEP = Data['INTSTEP']
+	
+	Covariance =	{
+					'name': name,
+					'STA_TIME': STA_TIME,
+					'INTSTEP': INTSTEP,
+					'cov': Data_C_delta,
+					'eigval': Data_E,
+					'eigvect': Data_Vect
+					}
+
+	
+	np.savez('Data/' + name + 'Covariance.npz', 
+			name=name,
+			STA_TIME=STA_TIME,
+			INTSTEP=INTSTEP,
+			cov=Data_C_delta,
+			eigval=Data_E,
+			eigvect=Data_Vect)
+			
+	return Covariance
+
+
+## Projection analysis ##
+#########################
+	
+def FindProjection(Data,STA, Cov, STA_TIME = 180):
+
+	INTSTEP = FindIntStep(Data)
+	##STA_TIME = STA['STA_TIME']
+	
+	Prior = STA['priorRecord']
+	Prior = Prior[:,0:int(STA_TIME/INTSTEP)]
+	
+	Current = STA['stimRecord']
+	Current = Current[:,0:int(STA_TIME/INTSTEP)]
+	sta = STA['STAstim']
+	sta = sta[0:int(STA_TIME/INTSTEP)]
+	sta = sta/lin.norm(sta)
+
+	EigVect = Cov['eigvect']
+	Mode1 = EigVect[:int(STA_TIME/INTSTEP),0]
+	Mode2 = EigVect[:int(STA_TIME/INTSTEP),1]
+	del(EigVect)
+	
+
+	Priorproj = np.zeros(len(Current[:,0]))
+	STAproj = np.zeros(len(Current[:,0]))
+	Mode1proj = np.zeros(len(Current[:,0]))
+	Mode2proj = np.zeros(len(Current[:,0]))
+	Mode1Pr = np.zeros(len(Current[:,0]))
+	Mode2Pr = np.zeros(len(Current[:,0]))
+
+	for i in range(len(Current[:,0])):
+		B =  Current[i,:]
+		Pr = Prior[i,:]
+
+		Priorproj[i] = np.dot(sta,Pr)
+		STAproj[i] = np.dot(sta,B)
+		Mode1Pr[i] = np.dot(Mode1,Pr)
+		Mode2Pr[i] = np.dot(Mode2,Pr)
+		Mode1proj[i] = np.dot(Mode1,B)
+		Mode2proj[i] = np.dot(Mode2,B)
+	
+	name = str(Data['name'])
+	Projection = 	{
+					'priorproject': Priorproj,
+					'STAproject': STAproj,
+					'Mode1Pr': Mode1Pr,
+					'Mode2Pr': Mode2Pr,
+					'Mode1proj': Mode1proj,
+					'Mode2proj': Mode2proj,
+					'name': name
+					}
+					
+	np.savez('Data/' + name + 'Project.npz',
+			priorproject=Priorproj,
+			STAproject=STAproj,
+			Mode1Pr=Mode1Pr,
+			Mode2Pr=Mode2Pr,
+			Mode1proj=Mode1proj,
+			Mode2proj=Mode2proj,
+			name=name)
+	return Projection
+	
+	
+## General functions ##
+#######################
+def runs(bits):
+    # make sure all runs of ones are well-bounded
+    bounded = np.hstack(([0], bits, [0]))
+    # get 1 at run starts and -1 at run ends
+    difs = np.diff(bounded)
+    run_starts, = np.where(difs > 0)
+    run_ends, = np.where(difs < 0)
+    # eliminate noise or short duration chirps
+    length = run_ends-run_starts
+    return run_starts, run_ends
+	
+	
+def PspikeHist(Projection, Pspike, BIN_SIZE = 0.5):
+
+	Priorproject = Projection['priorproject']
+	STAproject = Projection['STAproject']
+	Mode1project = Projection['Mode1proj']
+	Mode2project = Projection['Mode2proj']
+	Mode1Noise = Projection['Mode1Pr']
+	Mode2Noise = Projection['Mode2Pr']
+	
+	BINS = np.arange(-20,18,BIN_SIZE)
+	Prior_Hist = np.zeros(len(BINS)-1)
+	STA_Hist = np.zeros(len(BINS)-1)
+	M12_Spike = np.zeros((len(BINS)-1,len(BINS)-1))
+	M12_Prior = np.zeros((len(BINS)-1,len(BINS)-1))
+	
+	for i in range(0,len(BINS)-1):
+		Start = BINS[i]
+		End = BINS[i+1]
+			
+		Prior_Hist[i] = sum(np.logical_and(Priorproject>Start, Priorproject<=End))+1
+		STA_Hist[i] = sum(np.logical_and(STAproject>Start, STAproject<=End))+1
+		Mode1_Hist = np.logical_and(Mode1project>Start, Mode1project<=End)
+		Mode1Prior_Hist = np.logical_and(Mode1Noise>Start, Mode1Noise<=End)
+		for j in range(0,len(BINS)-1):
+			S1 = BINS[j]
+			E1 = BINS[j+1]
+			
+			Mode2_Hist = np.logical_and(Mode2project>S1, Mode2project<=E1)
+			Mode2Prior_Hist = np.logical_and(Mode2Noise>S1, Mode2Noise<=E1)
+			Total = sum(np.logical_and(Mode1_Hist==1,Mode2_Hist==1))
+			Total_Hist = sum(np.logical_and(Mode1Prior_Hist==1,Mode2Prior_Hist==1))
+
+			M12_Spike[i,j] = Total+1
+			M12_Prior[i,j] = Total_Hist+1
+
+
+	Pspike_STA = STA_Hist * Pspike / Prior_Hist
+	Pspike_2d = M12_Spike * Pspike / M12_Prior
+	
+	PspikeData = 	{
+					'Pspike_STA': Pspike_STA,
+					'Pspike_2d': Pspike_2d,
+					'name': Projection['name']
+					}
+	
+	np.savez('Data/' + str(Projection['name']) + 'PspikeData.npz',
+			Pspike_STA=Pspike_STA,
+			Pspike_2d=Pspike_2d)
+	
+	return PspikeData
+
+	
+	
+def LNmodel(Data, Cov):
+	## LOAD EigenModes ##
+	Current = Data['RepStim']
+	Voltage = Data['RepVolt']
+	sta = STA['STAvolt']
+	sta = sta[0:STA_TIME/INTSTEP]
+	sta = sta/lin.norm(sta)
+	
+	EigVect = Cov['eigvect']
+	Mode1 = EigVect[:,0]
+	Mode2 = EigVect[:,1]
+	del(EigVect)
+
+	### FIND P(spike|s0,s1,s2) ####
+	STA_LEN = STA_TIME/INTSTEP
+	Ps_STA = np.zeros(END-START+1)
+	Ps_2d = np.zeros(END-START+1)
+	S1 = np.zeros(END-START+1)
+	S2 = np.zeros(END-START+1)
+
+	for i in range(START,END):
+		
+		S0 = round((float(np.dot(sta,Current[i-STA_LEN:i]))/0.25)*0.25)
+		loc = np.where(BINS==[S0])
+		Ps_STA[i-START] = Pspike_STA[loc]
+		
+		S1[i-START] =round((float(np.dot(Mode1,Current[i-STA_LEN:i]))/0.25)*0.25)
+		S2[i-START] =round((float(np.dot(Mode2,Current[i-STA_LEN:i]))/0.25)*0.25)
+		loc1 = np.where(BINS==[S1[i-START]])
+		loc2 = np.where(BINS==[S2[i-START]])
+		Ps_2d[i-START] = Pspike_2d[loc1,loc2]
+
+
+	### FIND SPIKES IN DATA ###
+	Spikes = Voltage[START:END] > 0
+	Spikes = runs(Spikes)
+	
+	LNmodel =	{
+				'spikes': Spikes,
+				'Ps_2d': Ps_2d,
+				'Ps_STA': Ps_STA
+				}
+	np.savez('Data/' + Data['name'] + 'LNmodelData.npz',
+			spikes=Spikes,
+			Ps_2d=Ps_2d,
+			Ps_STA=Ps_STA)
+
+	
+	return LNmodel
 
 
 ## Analysis Functions ##
-
+########################
 
 def coinc_detection(Data_Spikes, Model_Spikes, DELTA):
     
@@ -197,71 +475,6 @@ def coinc_detection(Data_Spikes, Model_Spikes, DELTA):
                 
     return spike_reward
 
-def runs(bits):
-    # make sure all runs of ones are well-bounded
-    bounded = np.hstack(([0], bits, [0]))
-    # get 1 at run starts and -1 at run ends
-    difs = np.diff(bounded)
-    run_starts, = np.where(difs > 0)
-    run_ends, = np.where(difs < 0)
-    # eliminate noise or short duration chirps
-    length = run_ends-run_starts
-    return run_starts, run_ends
 
-## LNmodel functions ##
 	
 
-def Pspike_STA(x):
-    out = STA_PDF(x)*Pspike/Prior_PDF(x)
-    return out
-
-def Pspike_M1(x):
-    out = Mode1_PDF(x)*Pspike/Mode1Noise_PDF(x)
-    return out
-
-def Pspike_M2(x):
-    out = Mode2_PDF(x)*Pspike/Mode2Noise_PDF(x)
-    return out
-
-#def Pspike_2d(x,y):
-#    out = ( Mode1_PDF(x) + Mode2_PDF(y) )*Pspike/( Mode1Noise_PDF(x) + (Mode2Noise_PDF(y)) )
-#    return out
-
-def histOutline(histIn,binsIn):
-
-    stepSize = binsIn[1] - binsIn[0]
- 
-    bins = np.zeros(len(binsIn)*2 + 2, dtype=np.float)
-    data = np.zeros(len(binsIn)*2 + 2, dtype=np.float)
-    for bb in range(len(binsIn)):
-        bins[2*bb + 1] = binsIn[bb]
-        bins[2*bb + 2] = binsIn[bb] + stepSize
-        if bb < len(histIn):
-            data[2*bb + 1] = histIn[bb]
-            data[2*bb + 2] = histIn[bb]
- 
-    bins[0] = bins[1]
-    bins[-1] = bins[-2]
-    data[0] = 0
-    data[-1] = 0 
-    return (bins, data)
-
-
-
-def Hist(BIN_SIZE):
-    BINS = np.linspace(0,len(Spikes),len(Spikes)/BIN_SIZE*INTSTEP)
-    Data_Hist = np.zeros(len(BINS))
-    STA_Hist = np.zeros(len(BINS))
-    Model_Hist = np.zeros(len(BINS))
-    for i in range(0,len(BINS)-1):
-        Start = BINS[i]
-        End = BINS[i+1]
-        Data_Total = sum(Spikes[Start:End])
-        STA_Total = np.mean(Ps_STA[Start:End])
-        Model_Total = np.mean(Ps_2d[Start:End])
-        
-        Data_Hist[i] = Data_Total
-        STA_Hist[i] = STA_Total
-        Model_Hist[i] = Model_Total
-    Data_Hist = Data_Hist/BIN_SIZE*1000.0
-    return Data_Hist, STA_Hist, Model_Hist,BINS
