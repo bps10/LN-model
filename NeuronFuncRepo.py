@@ -267,7 +267,7 @@ def FindCovariance(Data):
 	return Covariance
 
 
-## Projection analysis ##
+## LN model analysis   ##
 #########################
 	
 def FindProjection(Data,STA, Cov, STA_TIME = 180):
@@ -330,18 +330,7 @@ def FindProjection(Data,STA, Cov, STA_TIME = 180):
 	return Projection
 	
 	
-## General functions ##
-#######################
-def runs(bits):
-    # make sure all runs of ones are well-bounded
-    bounded = np.hstack(([0], bits, [0]))
-    # get 1 at run starts and -1 at run ends
-    difs = np.diff(bounded)
-    run_starts, = np.where(difs > 0)
-    run_ends, = np.where(difs < 0)
-    # eliminate noise or short duration chirps
-    length = run_ends-run_starts
-    return run_starts, run_ends
+
 	
 	
 def PspikeHist(Projection, Pspike, BIN_SIZE = 0.5):
@@ -447,6 +436,20 @@ def LNmodel(Data, Cov):
 	
 	return LNmodel
 
+	
+## General functions ##
+#######################
+def runs(bits):
+    # make sure all runs of ones are well-bounded
+    bounded = np.hstack(([0], bits, [0]))
+    # get 1 at run starts and -1 at run ends
+    difs = np.diff(bounded)
+    run_starts, = np.where(difs > 0)
+    run_ends, = np.where(difs < 0)
+    # eliminate noise or short duration chirps
+    length = run_ends-run_starts
+    return run_starts, run_ends
+	
 
 ## Analysis Functions ##
 ########################
