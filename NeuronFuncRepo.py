@@ -469,7 +469,7 @@ class NeuronModel(LNmodel):
 			print 'No preprocessed model data. Now trying raw data.'
 
 		if self.data == None:
-			self.INTSTEP = Data.data['SamplingRate']**-1.0/1000.0
+			self.INTSTEP = Data.data['SamplingRate']**-1.0*1000.0
 			
 			params = np.genfromtxt(params,delimiter=',')
 			
