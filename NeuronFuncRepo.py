@@ -285,7 +285,7 @@ class LNmodel:
 			Mode1Noise = self.Projection['Mode1Pr']
 			Mode2Noise = self.Projection['Mode2Pr']
 			
-			BINS = np.arange(-20,18,BIN_SIZE)
+			BINS = np.arange(-20,20,BIN_SIZE)
 			Prior_Hist = np.zeros(len(BINS)-1)
 			STA_Hist = np.zeros(len(BINS)-1)
 			M12_Spike = np.zeros((len(BINS)-1,len(BINS)-1))
