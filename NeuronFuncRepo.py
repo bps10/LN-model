@@ -16,7 +16,7 @@ class LNmodel:
 		self.data = None
 		self.STA = None
 		self.Cov = None
-		self.Project = None
+		self.Projection = None
 		self.Bayes = None
 		self.ProbOfSpike = None
 		self.INTSTEP = None
