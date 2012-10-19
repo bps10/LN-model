@@ -45,7 +45,7 @@ def main(DataName,ModelName):
 	## Preprocess Model:
 	Model = Neuron.NeuronModel()
 	Model.GenModelData(Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
-						SaveName = DataName)
+						SaveName = ModelName)
 	
 	Model.STA_Analysis(180, SaveFiles = 'yes')
 	# Add STA plot call here.
