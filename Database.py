@@ -12,28 +12,35 @@ class Database:
 		self.group = self.file.createGroup("/", GroupName,'Neuron')
 		
 	def CreateDatabase(self, FileName):
+	
 		self.file = tables.openFile(FileName, mode = "w", title = "NeuronData")
 
-
-	def AddData2Database(self, DataName, Data):
+	def AddData2Database(self, DataName, Data, GroupName):
+		
+		loc = 'self.file.root.' + GroupName
 		
 		atom = tables.Atom.from_dtype(Data.dtype)
-		ds = self.file.createCArray(self.file.root, DataName, atom, Data.shape)
+		ds = self.file.createCArray(eval(loc), DataName, atom, Data.shape)
 		ds[:] = Data
-
-	
-	# Functions below completely untested and unlikely to work.
 		
 	def OpenDatabase(self, DatabaseName):
 	
-		self.file = tables.openFile(DatabaseName, mode = "w")
+		self.file = tables.openFile(DatabaseName, mode = "a")
 		
 	def QueryDatabase(self, GroupName, DataName):
 	
-		out = self.file.root.GroupName.DataName
-		
-		return out
+		loc = 'self.file.root.' + GroupName + '.' + DataName + '.read()'
+		return eval(loc)
+	
+	def AddMetaData(self):
+
+		fnode.attrs.content_type = 'text/plain; charset=us-ascii'
 		
 	def CloseDatabase(self):
 		
 		self.file.close()
+		
+
+		
+
+	

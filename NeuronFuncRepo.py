@@ -4,7 +4,7 @@ import matplotlib.pylab as plt
 import scipy.io as sio
 import numpy.linalg as lin
 import NeuronModels as models
-import tables as tables
+import Database as Database
 
 # ToDO:
 # 1. Add a __getitem__ function and clean up.
@@ -409,7 +409,7 @@ class LNmodel:
 
 ## Data Preprocessing ##
 ########################
-class DataProcessing(LNmodel):
+class DataProcessing(LNmodel,Database.Database):
 
 	
 	def GetData(self, DIRECTORY = '/120511c3.mat', SaveName = 'Rebecca'):
