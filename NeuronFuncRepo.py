@@ -20,7 +20,8 @@ class LNmodel:
 		self.Bayes = None
 		self.ProbOfSpike = None
 		self.INTSTEP = None
-	
+		self.Files = None
+		
 	def FindIntStep(self):
 		"""
 		convert kHZ into Intstep in msec
@@ -415,14 +416,21 @@ class DataProcessing(LNmodel,Database.Database):
 	def GetData(self, DIRECTORY = '/120511c3.mat', SaveName = 'Rebecca'):
 		
 		try:
-			self.data = np.load('Data/' + SaveName + 'ProcessedData.npz')
-			print 'Successfully loaded {0} preprocessed data from file.'.format(SaveName)
-		except IOError:
+			self.Files = Database.Database()
+			self.Files.OpenDatabase(SaveName + '.h5')
+			#= np.load('Data/' + SaveName + 'ProcessedData.npz')
+			
+			SamplingRate = self.Files.QueryDatabase('DataProcessing','SamplingRate')
+			
+			print 'Successfully opened {0} database.'.format(SaveName)
+		except :
+			
+			self.Files.CreateGroup('DataProcessing')
 			print 'No preprocessed data. Now trying raw data.'
 
 		if self.data == None:
 			RawData = sio.loadmat(DIRECTORY)
-			SamplingRate = 10000 # in Hz
+			SamplingRate = np.array([10000]) # in Hz
 			Volt = RawData['V'][0][0]
 			Stim = RawData['stim']
 			RepLoc = RawData['rep1']
@@ -433,7 +441,15 @@ class DataProcessing(LNmodel,Database.Database):
 			for i in range ( 0 , Stim.shape[1]):
 				RepVolt[:,i] = Volt[RepLoc , i]
 				RepStim[:,i] = Stim[RepLoc , i]
-
+			
+			self.Files.AddData2Database('SamplingRate', SamplingRate, 'DataProcessing')
+			self.Files.AddData2Database('RawVolt', Volt, 'DataProcessing')
+			self.Files.AddData2Database('RawStim', Stim, 'DataProcessing')
+			self.Files.AddData2Database('RepLoc', RepLoc, 'DataProcessing')
+			self.Files.AddData2Database('RepVolt', RepVolt, 'DataProcessing')
+			self.Files.AddData2Database('RepStim', RepStim, 'DataProcessing')
+			self.Files.AddData2Database('name', np.array([SaveName]), 'DataProcessing')
+			"""
 			self.data = 	{
 							'SamplingRate': SamplingRate,
 							'RawVolt': Volt,
@@ -451,9 +467,9 @@ class DataProcessing(LNmodel,Database.Database):
 					RepVolt=RepVolt, 
 					RepStim=RepStim, 
 					name=SaveName)
-
+			"""
 					
-					
+			self.Files.CloseDatabase()		
 					
 					
 
