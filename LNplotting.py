@@ -7,8 +7,32 @@ import PlottingFun
 
 class LNplotting(PlottingFun.PlottingFun):
 
-	def histOutline(histIn,binsIn):
+	def Hist(BIN_SIZE):
+		BINS = np.linspace(0,len(Spikes),len(Spikes)/BIN_SIZE*INTSTEP)
+		Data_Hist = np.zeros(len(BINS))
+		STA_Hist = np.zeros(len(BINS))
+		Model_Hist = np.zeros(len(BINS))
+		for i in range(0,len(BINS)-1):
+			Start = BINS[i]
+			End = BINS[i+1]
+			Data_Total = sum(Spikes[Start:End])
+			STA_Total = np.mean(Ps_STA[Start:End])
+			Model_Total = np.mean(Ps_2d[Start:End])
+			
+			Data_Hist[i] = Data_Total
+			STA_Hist[i] = STA_Total
+			Model_Hist[i] = Model_Total
+		Data_Hist = Data_Hist/BIN_SIZE*1000.0
+		return Data_Hist, STA_Hist, Model_Hist,BINS
 
+
+	def histOutline(self, DataType):
+		"""
+		"""
+		
+		binsIn = self.Bayes['BINS']
+		histIn = self.Bayes[DataType]
+		
 		stepSize = binsIn[1] - binsIn[0]
 	 
 		bins = np.zeros(len(binsIn)*2 + 2, dtype=np.float)
@@ -24,10 +48,12 @@ class LNplotting(PlottingFun.PlottingFun):
 		bins[-1] = bins[-2]
 		data[0] = 0
 		data[-1] = 0 
-		return (bins, data)
+		
+		self.histOutBins = bins
+		self.histOutData = data
 
 
-	def PlotHistOutline():
+	def PlotHistOutline(self):
 
 		## PLOT HISTOGRAM OUTLINES ##
 		Data_Hist,STA_Hist,Model_Hist,BINS = Neuron.Hist(HIST_BIN_SIZE)

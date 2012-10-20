@@ -4,7 +4,7 @@ import matplotlib.pylab as plt
 import scipy.io as sio
 import numpy.linalg as lin
 import NeuronModels as models
-
+import tables as tables
 
 # ToDO:
 # 1. Add a __getitem__ function and clean up.
@@ -16,11 +16,11 @@ class LNmodel:
 		self.data = None
 		self.STA = None
 		self.Cov = None
-		self.Project = None
+		self.Projection = None
 		self.Bayes = None
 		self.ProbOfSpike = None
 		self.INTSTEP = None
-
+	
 	def FindIntStep(self):
 		"""
 		convert kHZ into Intstep in msec
@@ -285,7 +285,7 @@ class LNmodel:
 			Mode1Noise = self.Projection['Mode1Pr']
 			Mode2Noise = self.Projection['Mode2Pr']
 			
-			BINS = np.arange(-20,18,BIN_SIZE)
+			BINS = np.arange(-20,20,BIN_SIZE)
 			Prior_Hist = np.zeros(len(BINS)-1)
 			STA_Hist = np.zeros(len(BINS)-1)
 			M12_Spike = np.zeros((len(BINS)-1,len(BINS)-1))
@@ -411,6 +411,7 @@ class LNmodel:
 ########################
 class DataProcessing(LNmodel):
 
+	
 	def GetData(self, DIRECTORY = '/120511c3.mat', SaveName = 'Rebecca'):
 		
 		try:
@@ -434,14 +435,14 @@ class DataProcessing(LNmodel):
 				RepStim[:,i] = Stim[RepLoc , i]
 
 			self.data = 	{
-					'SamplingRate': SamplingRate,
-					'RawVolt': Volt,
-					'RawStim': Stim,
-					'RepLoc': RepLoc,
-					'RepVolt': RepVolt,
-					'RepStim': RepStim,
-					'name': SaveName
-					}
+							'SamplingRate': SamplingRate,
+							'RawVolt': Volt,
+							'RawStim': Stim,
+							'RepLoc': RepLoc,
+							'RepVolt': RepVolt,
+							'RepStim': RepStim,
+							'name': SaveName
+							}
 			np.savez('Data/' + SaveName + 'ProcessedData.npz', 
 					SamplingRate=SamplingRate, 
 					RawVolt=Volt, 
@@ -458,6 +459,10 @@ class DataProcessing(LNmodel):
 
 class NeuronModel(LNmodel):
 
+	#def CreateDatabase():
+	#def OpenDatabase():
+	#def QueryDatabase():
+	
 	def GenModelData(self, Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
 					SaveName = 'Quad'):
 		"""
@@ -469,7 +474,7 @@ class NeuronModel(LNmodel):
 			print 'No preprocessed model data. Now trying raw data.'
 
 		if self.data == None:
-			self.INTSTEP = Data.data['SamplingRate']**-1.0*1000.0
+			self.INTSTEP = Data.data['SamplingRate']**-1.0 * 1000.0
 			
 			params = np.genfromtxt(params,delimiter=',')
 			
