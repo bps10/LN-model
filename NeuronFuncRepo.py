@@ -37,13 +37,14 @@ class LNmodel:
 			self.Files.OpenDatabase(self.NAME[0] + '.h5')
 
 			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
-			print 'Successfully loaded {0} data STA file'.format(self.NAME)
+			print 'Successfully loaded {0} data STA file'.format(self.NAME[0])
 			print '# Spikes: {0}'.format(spikenum)
 			self.STA = 'Full'
 			
 		except :
 			self.Files.CreateGroup('STA_Analysis')
-			print 'No {0} STA file, now generating new STA files'.format(self.NAME)
+			print 'No {0} STA file, now generating new STA files'.format(self.NAME[0])
+			
 		if self.STA == None:
 		
 			self.INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')
@@ -53,12 +54,12 @@ class LNmodel:
 			TIME = len(current)*self.INTSTEP
 
 			## Create Files ##
-			STA_CURRENT = np.zeros((current.shape[1]*1500,int((STA_TIME/self.INTSTEP*2))))
-			STA_VOLTAGE = np.zeros((current.shape[1]*1500,int((STA_TIME/self.INTSTEP*2))))
+			STA_CURRENT = np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
+			STA_VOLTAGE = np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
 			
-			Data_mV_Record = np.zeros((current.shape[1]*1500,int((STA_TIME/self.INTSTEP*2))))
-			Data_C_Record= np.zeros((current.shape[1]*1500,int((STA_TIME/self.INTSTEP*2))))
-			Prior_Rec = np.zeros((current.shape[1]*1500,int((STA_TIME/self.INTSTEP*2))))
+			Data_mV_Record = np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
+			Data_C_Record= np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
+			Prior_Rec = np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
 
 			CUR_IND = 0
 			q = 0
@@ -108,13 +109,13 @@ class LNmodel:
 			Data_STA_Current = Data_C_Record.mean(0)
 			Data_STA_Voltage = Data_mV_Record.mean(0)
 			
-			self.Files.AddData2Database('STA_TIME', np.array([STA_TIME]), 'DataProcessing')
-			self.Files.AddData2Database('spikenum', Data_Num_Spikes, 'DataProcessing')
-			self.Files.AddData2Database('stimRecord', Data_C_Record, 'DataProcessing')
-			self.Files.AddData2Database('voltRecord', Data_mV_Record, 'DataProcessing')
-			self.Files.AddData2Database('priorRecord', Prior_Rec, 'DataProcessing')
-			self.Files.AddData2Database('STAstim', Data_STA_Current, 'DataProcessing')
-			self.Files.AddData2Database('STAvolt', Data_STA_Voltage, 'DataProcessing')
+			self.Files.AddData2Database('STA_TIME', np.array([STA_TIME]), 'STA_Analysis')
+			self.Files.AddData2Database('spikenum', Data_Num_Spikes, 'STA_Analysis')
+			self.Files.AddData2Database('stimRecord', Data_C_Record, 'STA_Analysis')
+			self.Files.AddData2Database('voltRecord', Data_mV_Record, 'STA_Analysis')
+			self.Files.AddData2Database('priorRecord', Prior_Rec, 'STA_Analysis')
+			self.Files.AddData2Database('STAstim', Data_STA_Current, 'STA_Analysis')
+			self.Files.AddData2Database('STAvolt', Data_STA_Voltage, 'STA_Analysis')
 
 			self.Files.CloseDatabase()		
 
@@ -128,27 +129,37 @@ class LNmodel:
 		"""
 			## Covariance Analysis:
 		try:
-			self.Cov = np.load('Data/' + str(self.data['name']) + 'Covariance.npz')
-			print 'Successfully loaded {0} data Cov file'.format(self.data['name'])
-		except IOError:
-			print 'No {0} Cov file, now generating. This could take several minutes'.format(
-					self.data['name'])
+			self.Files = Database.Database()
+			self.Files.OpenDatabase(self.NAME[0] + '.h5')
+
+			self.Files.QueryDatabase('Cov_Analysis','eigval')
+			
+			print 'Successfully loaded {0} data Cov file'.format(self.NAME[0])
+			self.Cov = 'Full'
+		except :
+			self.Files.CreateGroup('Cov_Analysis')
+			print 'No {0} Cov files, now generating. This could take several minutes'.format(self.NAME[0])
 		if self.Cov == None:
 
+			STA_TIME = self.Files.QueryDatabase('STA_Analysis','STA_TIME')
+			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
+			stimRecord = self.Files.QueryDatabase('STA_Analysis', 'stimRecord')
+			priorRecord = self.Files.QueryDatabase('STA_Analysis', 'priorRecord')
+			STAstim = self.Files.QueryDatabase('STA_Analysis', 'STAstim')
 		
 			Begin = 0
-			End = self.STA['STA_TIME'] / self.INTSTEP
+			End = STA_TIME / self.INTSTEP
 
 			Data_C_spike = np.zeros((End,End))
 			C_prior = np.zeros((End,End))
 
 
-			STA = self.STA['STAstim'][Begin:End]
-			mat_STA = STA*STA[:,np.newaxis]*self.STA['spikenum']/(self.STA['spikenum']-1)
+			STA = STAstim[Begin:End]
+			mat_STA = STA*STA[:,np.newaxis]*spikenum/(spikenum - 1.0)
 
-			for i in range(0,self.STA['spikenum']):
-				a = self.STA['stimRecord'][i,Begin:End]
-				b = self.STA['priorRecord'][i,Begin:End]
+			for i in range(0,spikenum):
+				a = stimRecord[i,Begin:End]
+				b = priorRecord[i,Begin:End]
 				
 				mat_spike = a*a[:,np.newaxis]
 				mat_prior = b*b[:,np.newaxis]
@@ -158,8 +169,8 @@ class LNmodel:
 				C_prior += mat_prior
 				
 			### FIND MEANS ###
-			Data_C_spike = Data_C_spike/(self.STA['spikenum']-1)
-			C_prior = C_prior/(self.STA['spikenum']-1)
+			Data_C_spike = Data_C_spike/(spikenum - 1.0)
+			C_prior = C_prior/(spikenum - 1.0)
 
 			### FIND DELTA COV ###
 			Data_C_delta = Data_C_spike - C_prior
@@ -167,25 +178,13 @@ class LNmodel:
 			### EigenValues, EigenVectors
 			Data_E, V = lin.eig(Data_C_delta)
 			I = np.argsort(Data_E)
-			Data_E = Data_E[I][:( self.STA['STA_TIME']/self.INTSTEP)]
-			Data_Vect = V[:,I][:,:( self.STA['STA_TIME']/self.INTSTEP)]
+			Data_E = Data_E[I][:( STA_TIME / self.INTSTEP)]
+			Data_Vect = V[:,I][:,:( STA_TIME / self.INTSTEP)]
 
-			## needs to be reformatted this way for savez for some reason.
-			name = str(self.data['name'])
-			STA_TIME = self.STA['STA_TIME']
-			INTSTEP = self.INTSTEP
-			
-			self.Cov =	{
-								'cov': Data_C_delta,
-								'eigval': Data_E,
-								'eigvect': Data_Vect
-								}
 
-			if SaveFiles.lower() == 'yes':
-				np.savez('Data/' + name + 'Covariance.npz', 
-						cov=Data_C_delta,
-						eigval=Data_E,
-						eigvect=Data_Vect)
+			self.Files.AddData2Database('cov', Data_C_delta, 'Covariance')
+			self.Files.AddData2Database('eigval', Data_E, 'Covariance')
+			self.Files.AddData2Database('eigvect', Data_Vect, 'Covariance')
 
 
 
