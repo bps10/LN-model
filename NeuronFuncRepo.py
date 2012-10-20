@@ -13,6 +13,7 @@ import Database as Database
 class LNmodel:
 
 	def __init__(self):
+		self.NAME = None
 		self.data = None
 		self.STA = None
 		self.Cov = None
@@ -32,20 +33,22 @@ class LNmodel:
 	def STA_Analysis(self, STA_TIME = 180, SaveFiles = 'no'):
 		
 		try: 
-			self.STA = np.load('Data/' + str(self.data['name']) + 'STA.npz')
-			LNmodel.FindIntStep(self)
-			print 'Successfully loaded {0} data STA file'.format(self.data['name'])
-			print '# Spikes: {0}'.format(self.STA['spikenum'])
-			
-		except IOError:
+			self.Files = Database.Database()
+			self.Files.OpenDatabase(self.NAME[0] + '.h5')
 
-			print 'No {0} STA file, now generating new STA files'.format(self.data['name'])
+			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
+			print 'Successfully loaded {0} data STA file'.format(self.NAME)
+			print '# Spikes: {0}'.format(spikenum)
+			self.STA = 'Full'
+			
+		except :
+			self.Files.CreateGroup('STA_Analysis')
+			print 'No {0} STA file, now generating new STA files'.format(self.NAME)
 		if self.STA == None:
 		
-			LNmodel.FindIntStep(self)## in msec
-			
-			current = self.data['RawStim']
-			voltage = self.data['RawVolt']
+			self.INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')
+			current = self.Files.QueryDatabase('DataProcessing', 'RawStim')
+			voltage = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
 			
 			TIME = len(current)*self.INTSTEP
 
@@ -99,34 +102,22 @@ class LNmodel:
 			Data_mV_Record = Data_mV_Record[np.any(Data_mV_Record,1),:]
 			Prior_Rec = Prior_Rec[0:len(Data_mV_Record),:]
 				
-			Data_Num_Spikes = len(Data_mV_Record)
+			Data_Num_Spikes = np.array([len(Data_mV_Record)])
 			print '# Spikes:', Data_Num_Spikes
 
 			Data_STA_Current = Data_C_Record.mean(0)
 			Data_STA_Voltage = Data_mV_Record.mean(0)
 			
-			name = str(self.data['name'])
-			self.STA = 	{
-						'STA_TIME': STA_TIME,
-						'spikenum': Data_Num_Spikes,
-						'stimRecord': Data_C_Record,
-						'voltRecord': Data_mV_Record,
-						'priorRecord': Prior_Rec,
-						'STAstim': Data_STA_Current,
-						'STAvolt': Data_STA_Voltage,
-						}
-			
-			if SaveFiles.lower() == 'yes':
-				np.savez('Data/' + name + 'STA.npz', 
-						STA_TIME=STA_TIME,
-						spikenum=Data_Num_Spikes,
-						stimRecord=Data_C_Record, 
-						voltRecord=Data_mV_Record,
-						priorRecord=Prior_Rec,
-						STAstim=Data_STA_Current,
-						STAvolt=Data_STA_Voltage,
-						name=name)
-			
+			self.Files.AddData2Database('STA_TIME', np.array([STA_TIME]), 'DataProcessing')
+			self.Files.AddData2Database('spikenum', Data_Num_Spikes, 'DataProcessing')
+			self.Files.AddData2Database('stimRecord', Data_C_Record, 'DataProcessing')
+			self.Files.AddData2Database('voltRecord', Data_mV_Record, 'DataProcessing')
+			self.Files.AddData2Database('priorRecord', Prior_Rec, 'DataProcessing')
+			self.Files.AddData2Database('STAstim', Data_STA_Current, 'DataProcessing')
+			self.Files.AddData2Database('STAvolt', Data_STA_Voltage, 'DataProcessing')
+
+			self.Files.CloseDatabase()		
+
 
 
 	################
@@ -419,16 +410,20 @@ class DataProcessing(LNmodel,Database.Database):
 			self.Files = Database.Database()
 			self.Files.OpenDatabase(SaveName + '.h5')
 			#= np.load('Data/' + SaveName + 'ProcessedData.npz')
+			self.NAME = np.array([SaveName])
 			
 			SamplingRate = self.Files.QueryDatabase('DataProcessing','SamplingRate')
-			
 			print 'Successfully opened {0} database.'.format(SaveName)
+			self.data = 'Full'
+			
 		except :
 			
 			self.Files.CreateGroup('DataProcessing')
 			print 'No preprocessed data. Now trying raw data.'
 
 		if self.data == None:
+			self.NAME = np.array([SaveName])
+		
 			RawData = sio.loadmat(DIRECTORY)
 			SamplingRate = np.array([10000]) # in Hz
 			Volt = RawData['V'][0][0]
@@ -442,52 +437,39 @@ class DataProcessing(LNmodel,Database.Database):
 				RepVolt[:,i] = Volt[RepLoc , i]
 				RepStim[:,i] = Stim[RepLoc , i]
 			
+			self.INTSTEP = np.array([(SamplingRate**-1.0) * 1000.0])
+			
 			self.Files.AddData2Database('SamplingRate', SamplingRate, 'DataProcessing')
+			self.Files.AddData2Database('INTSTEP', self.INTSTEP, 'DataProcessing')
 			self.Files.AddData2Database('RawVolt', Volt, 'DataProcessing')
 			self.Files.AddData2Database('RawStim', Stim, 'DataProcessing')
 			self.Files.AddData2Database('RepLoc', RepLoc, 'DataProcessing')
 			self.Files.AddData2Database('RepVolt', RepVolt, 'DataProcessing')
 			self.Files.AddData2Database('RepStim', RepStim, 'DataProcessing')
 			self.Files.AddData2Database('name', np.array([SaveName]), 'DataProcessing')
-			"""
-			self.data = 	{
-							'SamplingRate': SamplingRate,
-							'RawVolt': Volt,
-							'RawStim': Stim,
-							'RepLoc': RepLoc,
-							'RepVolt': RepVolt,
-							'RepStim': RepStim,
-							'name': SaveName
-							}
-			np.savez('Data/' + SaveName + 'ProcessedData.npz', 
-					SamplingRate=SamplingRate, 
-					RawVolt=Volt, 
-					RawStim=Stim,
-					RepLoc=RepLoc, 
-					RepVolt=RepVolt, 
-					RepStim=RepStim, 
-					name=SaveName)
-			"""
-					
+
 			self.Files.CloseDatabase()		
 					
 					
 
-class NeuronModel(LNmodel):
+class NeuronModel(LNmodel, Database.Database):
 
-	#def CreateDatabase():
-	#def OpenDatabase():
-	#def QueryDatabase():
 	
 	def GenModelData(self, Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
 					SaveName = 'Quad'):
 		"""
 		"""
 		try:
-			self.data = np.load('Data/' + SaveName + 'ModelProcessedData.npz')
-			print 'Successfully loaded {0} preprocessed model data from file.'.format(SaveName)
-		except IOError:
-			print 'No preprocessed model data. Now trying raw data.'
+			self.Files = Database.Database()
+			self.Files.OpenDatabase(SaveName + '.h5')
+			self.NAME = np.array([SaveName])
+			
+			SamplingRate = self.Files.QueryDatabase('DataProcessing','SamplingRate')
+			print 'Successfully opened {0} database.'.format(SaveName)
+		except :
+			
+			self.Files.CreateGroup('DataProcessing')
+			print 'No preprocessed data. Now trying raw data.'
 
 		if self.data == None:
 			self.INTSTEP = Data.data['SamplingRate']**-1.0 * 1000.0
@@ -507,27 +489,20 @@ class NeuronModel(LNmodel):
 				RepModelVolt[:,i] = ModelVolt[Data.data['RepLoc'] , i]
 
 			INT = self.INTSTEP
-			self.data =	{
-						'SamplingRate': Data.data['SamplingRate'],
-						'INTSTEP': INT,
-						'RawStim': current,
-						'RawVolt': ModelVolt,
-						'RepLoc': Data.data['RepLoc'],
-						'RepStim': RepStim,
-						'RepVolt': RepModelVolt,
-						'name': SaveName
-						}
-						
-			np.savez('Data/' + SaveName + 'ModelProcessedData.npz',
-					INTSTEP=INT,
-					RawStim=current,
-					RawVolt=ModelVolt,
-					RepStim = RepStim,
-					RepLoc = Data.data['RepLoc'],
-					RepVolt = RepModelVolt,
-					SamplingRate=Data.data['SamplingRate'], 
-					name = SaveName)
+			
+			
+			self.Files.AddData2Database('SamplingRate', SamplingRate, 'DataProcessing')
+			self.Files.AddData2Database('INTSTEP', INT, 'DataProcessing')
+			self.Files.AddData2Database('RawVolt', ModelVolt, 'DataProcessing')
+			self.Files.AddData2Database('RawStim', current, 'DataProcessing')
+			self.Files.AddData2Database('RepLoc', Data.data['RepLoc'], 'DataProcessing')
+			self.Files.AddData2Database('RepVolt', RepModelVolt, 'DataProcessing')
+			self.Files.AddData2Database('RepStim', RepStim, 'DataProcessing')
+			self.Files.AddData2Database('ModelParams', params, 'DataProcessing')
+			self.Files.AddData2Database('name', np.array([SaveName]), 'DataProcessing')
 
+					
+			self.Files.CloseDatabase()		
 
 		
 ## General functions ##

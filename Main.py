@@ -14,24 +14,24 @@ import LNplotting as LNplot
 ## 4. Help files, documentation.
 
 
-def main(DataName,ModelName):
+#def main(DataName,ModelName):
 
-	## Preprocess data:
-	Data = Neuron.DataProcessing()
-	Data.GetData('/120511c3.mat', DataName)
-	
-	Data.STA_Analysis(180, SaveFiles = 'yes')
-	# Add STA plot call here.
-	
-	Data.FindCovariance(SaveFiles = 'yes')
-	# Add Cov plot call here.
-	
-	Data.FindProjection(SaveFiles = 'yes')
-	# Add Projection plot call here.
-	
-	Data.BayesPspike(SaveFiles = 'yes')
-	
-	Data.FindProbOfSpike(SaveFiles = 'yes')
+## Preprocess data:
+Data = Neuron.DataProcessing()
+Data.GetData('/120511c3.mat', 'Rebecca')
+
+Data.STA_Analysis(180, SaveFiles = 'yes')
+# Add STA plot call here.
+
+Data.FindCovariance(SaveFiles = 'yes')
+# Add Cov plot call here.
+
+Data.FindProjection(SaveFiles = 'yes')
+# Add Projection plot call here.
+
+Data.BayesPspike(SaveFiles = 'yes')
+
+Data.FindProbOfSpike(SaveFiles = 'yes')
 	# Add LNmodel plot call here.
 	
 	#####################################
