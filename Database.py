@@ -1,6 +1,10 @@
 import tables as tables
 import numpy as np
 	
+## To Do:
+
+## 1. Add a class that records the analyses.
+## 2. AddMetaData()
 
 class Database:
 
@@ -53,4 +57,3 @@ class Database:
 
 		
 
-	

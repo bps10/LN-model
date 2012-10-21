@@ -7,11 +7,13 @@ import NeuronModels as models
 import Database as Database
 
 # TODO:
-
+# 0. Running list of what has been done to the data.
 # 1. Find Spike locations in GenData() - integrate w Runs into single function.
 # 2. Scale size of STA memory allocation based on GenData().
 # 3. Git objects.
-# 4. MetaData.
+# 4. MetaData. Or Info Group.
+# 5. Plotting
+# 6. Move neuron models into NeuronModels
 
 class LNmodel:
 
@@ -204,7 +206,7 @@ class LNmodel:
 			self.Files.QueryDatabase('Projection','STAproject')
 			print 'Successfully loaded {0} Projection data'.format(self.NAME)
 			
-			self.Project = 'Full'
+			self.Projection = 'Full'
 			self.Files.CloseDatabase()
 			
 		except :
@@ -217,6 +219,7 @@ class LNmodel:
 			Prior = self.Files.QueryDatabase('STA_Analysis','priorRecord')
 			stimRecord = self.Files.QueryDatabase('STA_Analysis', 'stimRecord')
 			STAstim = self.Files.QueryDatabase('STA_Analysis', 'STAstim')
+			EigVect = self.Files.QueryDatabase('Cov_Analysis', 'eigvect')
 			
 			Prior = Prior[:,0:int(STA_TIME / self.INTSTEP)]
 			
@@ -225,7 +228,6 @@ class LNmodel:
 			STAstim = STAstim[0:int(STA_TIME / self.INTSTEP)]
 			STAstim = STAstim/lin.norm(STAstim)
 
-			EigVect = self.Cov['eigvect']
 			Mode1 = EigVect[:int(STA_TIME / self.INTSTEP),0]
 			Mode2 = EigVect[:int(STA_TIME / self.INTSTEP),1]
 			del(EigVect)
@@ -267,16 +269,18 @@ class LNmodel:
 		try:
 
 			self.Files.OpenDatabase(self.NAME + '.h5')
-			self.Files.QueryDatabase('Bayes','BINS')
-			print 'Successfully loaded {0} data Cov file'.format(self.NAME)
 			
-			self.Project = 'Full'
+			self.Files.QueryDatabase('Bayes','BINS')
+			print 'Successfully loaded {0} data Bayes file'.format(self.NAME)
+			
+			self.Bayes = 'Full'
 
 			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
 			RawVolt = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
 			
 			LNmodel.FindP_spike(self, spikenum, RawVolt)
-			print '{0} spikes/sec'.format(self.Pspike)
+			print '{0} spikes/second'.format(self.Pspike)
+
 			self.Files.CloseDatabase()
 			
 		except :
@@ -288,10 +292,10 @@ class LNmodel:
 
 			Priorproject = self.Files.QueryDatabase('Projection', 'priorproject')
 			STAproject = self.Files.QueryDatabase('Projection', 'STAproject')
-			Mode1project = self.Files.QueryDatabase('Projection', 'Mode1project')
-			Mode2project = self.Files.QueryDatabase('Projection', 'Mode2project')
-			Mode1Noise = self.Files.QueryDatabase('Projection', 'Mode1Noise')
-			Mode2Noise = self.Files.QueryDatabase('Projection', 'Mode2Noise')
+			Mode1project = self.Files.QueryDatabase('Projection', 'Mode1proj')
+			Mode2project = self.Files.QueryDatabase('Projection', 'Mode2proj')
+			Mode1Noise = self.Files.QueryDatabase('Projection', 'Mode1Pr')
+			Mode2Noise = self.Files.QueryDatabase('Projection', 'Mode2Pr')
 
 			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
 			RawVolt = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
@@ -323,7 +327,7 @@ class LNmodel:
 					M12_Prior[i,j] = Total_Hist+1
 
 			
-			LNmodel.FindP_spike(self, spikenum, RawVolt)
+			LNmodel.FindP_spike(self, spikenum, RawVolt)[0]
 			print '{0} spikes/second'.format(self.Pspike)
 			
 			## Bayes Theorem:
@@ -348,6 +352,7 @@ class LNmodel:
 			print 'Successfully loaded {0} Prob of Spike files'.format(self.NAME)
 			self.Files.CloseDatabase()
 			
+			self.ProbOfSpike = 'Full'
 		except :
 			
 			self.Files.CreateGroup('ProbOfSpike')
@@ -356,24 +361,27 @@ class LNmodel:
 		if self.ProbOfSpike == None:
 		
 			## LOAD EigenModes ##
-			Current = self.data['RepStim']
-			Voltage = self.data['RepVolt']
-			sta = self.STA['STAstim']
-			sta = sta[0:self.STA['STA_TIME']/self.INTSTEP]
-			sta = sta/lin.norm(sta)
+			Current = self.Files.QueryDatabase('DataProcessing', 'RepStim')
+			Voltage = self.Files.QueryDatabase('DataProcessing', 'RepVolt')
+			STAstim = self.Files.QueryDatabase('STA_Analysis', 'STAstim')
+			STA_TIME = self.Files.QueryDatabase('STA_Analysis', 'STA_TIME')[0]
+			EigVect = self.Files.QueryDatabase('Cov_Analysis', 'eigvect')
+			BINS = self.Files.QueryDatabase('Bayes', 'BINS')
+			Pspike_STA = self.Files.QueryDatabase('Bayes', 'Pspike_STA')
+			Pspike_2d = self.Files.QueryDatabase('Bayes', 'Pspike_2d')
 			
-			EigVect = self.Cov['eigvect']
+			STAstim = STAstim[0:STA_TIME / self.INTSTEP]
+			STAstim = STAstim / lin.norm(STAstim)
+			
 			Mode1 = EigVect[:,0]
 			Mode2 = EigVect[:,1]
 			del(EigVect)
 			
 			END = 1e5
 			START = 1e4
-			BINS = self.Bayes['BINS']
-			Pspike_STA = self.Bayes['Pspike_STA']
-			Pspike_2d = self.Bayes['Pspike_2d']
+
 			### FIND P(spike|s0,s1,s2) ####
-			STA_LEN = self.STA['STA_TIME']/self.INTSTEP
+			STA_LEN = STA_TIME / self.INTSTEP
 			Ps_STA = np.zeros((END-START+1, Current.shape[1]))
 			Ps_2d = np.zeros((END-START+1, Current.shape[1]))
 			S1 = np.zeros((END-START+1))
@@ -382,7 +390,7 @@ class LNmodel:
 			for j in range(0, Current.shape[1]):
 				for i in range(int(START),int(END)):
 					
-					S0 = round((float(np.dot(sta,Current[i-STA_LEN:i,j]))/0.25)*0.25)
+					S0 = round((float(np.dot(STAstim,Current[i-STA_LEN:i,j]))/0.25)*0.25)
 					loc = np.where(BINS==[S0])
 					Ps_STA[i-START,j] = Pspike_STA[loc]
 					
@@ -466,21 +474,22 @@ class DataProcessing(LNmodel,Database.Database):
 class NeuronModel(LNmodel, Database.Database):
 
 	
-	def GenModelData(self, SaveData, Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv'):
+	def GenModelData(self, SaveName, DataName,  params = 'EvolvedParam1_8.csv', model = models.QUADmodel):
 		"""
 		"""
 		try:
 			self.Files = Database.Database()
 			self.Files.OpenDatabase(SaveName + '.h5')
-			self.NAME = np.array([SaveName])
+			self.NAME = np.array([SaveName])[0]
+			self.Files.QueryDatabase('DataProcessing', 'SamplingRate')
 			
 			DATA = Database.Database()
-			DATA.OpenDatabase(Data + '.h5')
+			DATA.OpenDatabase(DataName + '.h5')
 			SamplingRate = DATA.QueryDatabase('DataProcessing', 'SamplingRate')
 			
 			print 'Successfully opened {0} database.'.format(self.NAME)
 			self.Files.CloseDatabase()
-			
+			self.data = 'Full'
 		except :
 			
 			self.Files.CreateGroup('DataProcessing')
@@ -489,12 +498,13 @@ class NeuronModel(LNmodel, Database.Database):
 		if self.data == None:
 
 			DATA = Database.Database()
-			DATA.OpenDatabase(Data + '.h5')
+			DATA.OpenDatabase(DataName + '.h5')
 			self.INTSTEP = DATA.QueryDatabase('DataProcessing', 'INTSTEP')
 			RepLoc = DATA.QueryDatabase('DataProcessing', 'RepLoc')
 			RawStim = DATA.QueryDatabase('DataProcessing', 'RawStim')
 			RawVolt = DATA.QueryDatabase('DataProcessing', 'RawVolt')
 			RepStim = DATA.QueryDatabase('DataProcessing', 'RepStim')
+			DATA.CloseDatabase()
 			
 			params = np.genfromtxt(params,delimiter=',')
 			
@@ -507,7 +517,7 @@ class NeuronModel(LNmodel, Database.Database):
 			RepModelVolt = np.zeros((RepLoc.shape[1], RawVolt.shape[1]))
 
 			for i in range ( 0 , RawStim.shape[1]):
-				RepModelVolt[:,i] = ModelVolt[Data.data['RepLoc'] , i]
+				RepModelVolt[:,i] = ModelVolt[ RepLoc , i]
 
 			
 			self.Files.AddData2Database('SamplingRate', SamplingRate, 'DataProcessing')
@@ -523,7 +533,33 @@ class NeuronModel(LNmodel, Database.Database):
 					
 			self.Files.CloseDatabase()		
 
+	## Analysis Functions ##
+	########################
+
+	def coinc_detection(Data_Spikes, Model_Spikes, DELTA):
+	
+		spike_reward = 0
+		max_spike = len(Model_Spikes)
+		max_spike_data = len(Data_Spikes)
+		if max_spike >= 1:
+
+			interval = DELTA/INTSTEP
+			counter = 0
+			spike_test = 0
 		
+			while spike_test < max_spike and counter < max_spike_data:
+				if ( Model_Spikes[spike_test] >= (Data_Spikes[counter] - interval) and
+				     Model_Spikes[spike_test] <= (Data_Spikes[counter] + interval) ):
+					spike_reward += 1
+					counter += 1
+					spike_test += 1
+			        elif Model_Spikes[spike_test] < Data_Spikes[counter] - interval:
+					spike_test += 1
+				elif Model_Spikes[spike_test] > Data_Spikes[counter] + interval:
+					counter += 1
+				
+		return spike_reward
+
 ## General functions ##
 #######################
 def runs(bits):
@@ -540,33 +576,28 @@ def runs(bits):
 	return run_starts, run_ends
 		
 
-## Analysis Functions ##
-########################
-
-def coinc_detection(Data_Spikes, Model_Spikes, DELTA):
-	
-	spike_reward = 0
-	max_spike = len(Model_Spikes)
-	max_spike_data = len(Data_Spikes)
-	if max_spike >= 1:
-
-		interval = DELTA/INTSTEP
-		counter = 0
-		spike_test = 0
-	
-		while spike_test < max_spike and counter < max_spike_data:
-			if ( Model_Spikes[spike_test] >= (Data_Spikes[counter] - interval) and
-				 Model_Spikes[spike_test] <= (Data_Spikes[counter] + interval) ):
-				spike_reward += 1
-				counter += 1
-				spike_test += 1
-			elif Model_Spikes[spike_test] < Data_Spikes[counter] - interval:
-				spike_test += 1
-			elif Model_Spikes[spike_test] > Data_Spikes[counter] + interval:
-				counter += 1
-				
-	return spike_reward
 
 
 	
+"""
+    Spikes_Data = voltage_Data > 0
+    Spikes_Model = voltage_Model > 0
+    Spikes_Data = runs(Spikes_Data)
+    Spikes_Model = runs(Spikes_Model)
 
+    #### Coincidence Detection
+    DELTA = 4.0 ## msec
+    Hits = float(coinc_detection(Spikes_Data[0],Spikes_Model[0], DELTA))
+    N_data = len(Spikes_Data[0])
+    N_model = len(Spikes_Model[0])
+    Extra = (N_model - Hits)/N_model
+    Missing = (N_data - Hits)/N_data
+    Npoisson = (2*DELTA*N_model)*N_data/TIME
+
+
+    print 'Hit (%): ', Hits/N_data*100
+    print 'Missing Spikes (%): ', Missing*100
+    print 'Extra Spikes (%): ', Extra*100
+    print 'Simple Coincidence Factor: ', 1-((Extra + Missing)/2.)
+    print 'Better Coincidence Factor: ', (Hits - Npoisson) / (0.5*(1-(Npoisson/N_data))*(N_data + N_model))
+"""

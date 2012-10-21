@@ -8,10 +8,10 @@ import NeuronFuncRepo as Neuron
 #import LNplotting as LNplot
 
 ## To Do:
+
 ## 1. Putting it all together, plotting.
 ## 2. User options: where to find data, type of neuron model.
-## 3. Classes, subclasses.
-## 4. Help files, documentation.
+## 3. Help files, documentation.
 
 
 #def main(DataName,ModelName):
@@ -32,34 +32,33 @@ Data.FindProjection()
 Data.BayesPspike()
 
 Data.FindProbOfSpike()
-
+Data.Files.CloseDatabase()
 	# Add LNmodel plot call here.
 	
 	#####################################
 	
-	print ' '
-	print 'Now the models turn'
-	print ' '
+print ' '
+print 'Now the models turn'
+print ' '
 	
 	#####################################
 
 	## Preprocess Model:
-	Model = Neuron.NeuronModel()
-	Model.GenModelData(Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
-						SaveName = ModelName)
+Model = Neuron.NeuronModel()
+Model.GenModelData(SaveName = 'Quad', DataName= 'Rebecca', model = models.QUADmodel, params = 'EvolvedParam1_8.csv')
 	
-	Model.STA_Analysis(180, SaveFiles = 'yes')
+Model.STA_Analysis(180)
 	# Add STA plot call here.
-	
-	Model.FindCovariance(SaveFiles = 'yes')
+
+Model.FindCovariance()
 	# Add Cov plot call here.
 	
-	Model.FindProjection(SaveFiles = 'yes')
+Model.FindProjection()
 	# Add Projection plot call here.
 	
-	Model.BayesPspike(SaveFiles = 'yes')
-	
-	Model.FindProbOfSpike(SaveFiles = 'yes')
+Model.BayesPspike()
+
+Model.FindProbOfSpike()
 	# Add LNmodel plot call here.
 
 
