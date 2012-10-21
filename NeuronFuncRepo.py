@@ -6,9 +6,12 @@ import numpy.linalg as lin
 import NeuronModels as models
 import Database as Database
 
-# ToDO:
-# 1. Add a __getitem__ function and clean up.
-# 2. Generalize: particularly, GenData()
+# TODO:
+
+# 1. Find Spike locations in GenData() - integrate w Runs into single function.
+# 2. Scale size of STA memory allocation based on GenData().
+# 3. Git objects.
+# 4. MetaData.
 
 class LNmodel:
 
@@ -30,36 +33,38 @@ class LNmodel:
 		self.INTSTEP = (self.data['SamplingRate']**-1.0) * 1000.0
 		
 		
-	def STA_Analysis(self, STA_TIME = 180, SaveFiles = 'no'):
+	def STA_Analysis(self, STA_TIME = 180):
 		
 		try: 
-			self.Files = Database.Database()
-			self.Files.OpenDatabase(self.NAME[0] + '.h5')
+
+			self.Files.OpenDatabase(self.NAME + '.h5')
 
 			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
-			print 'Successfully loaded {0} data STA file'.format(self.NAME[0])
+			print 'Successfully loaded {0} data STA file'.format(self.NAME)
 			print '# Spikes: {0}'.format(spikenum)
 			self.STA = 'Full'
+			self.INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')[0][0]
+			self.Files.CloseDatabase()
 			
 		except :
 			self.Files.CreateGroup('STA_Analysis')
-			print 'No {0} STA file, now generating new STA files'.format(self.NAME[0])
+			print 'No {0} STA file, now generating new STA files'.format(self.NAME)
 			
 		if self.STA == None:
 		
-			self.INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')
+			self.INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')[0][0]
 			current = self.Files.QueryDatabase('DataProcessing', 'RawStim')
 			voltage = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
 			
 			TIME = len(current)*self.INTSTEP
 
 			## Create Files ##
-			STA_CURRENT = np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
-			STA_VOLTAGE = np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
+			STA_CURRENT = np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
+			STA_VOLTAGE = np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
 			
-			Data_mV_Record = np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
-			Data_C_Record= np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
-			Prior_Rec = np.zeros((current.shape[1]*500,int((STA_TIME/self.INTSTEP*2))))
+			Data_mV_Record = np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
+			Data_C_Record= np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
+			Prior_Rec = np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
 
 			CUR_IND = 0
 			q = 0
@@ -75,8 +80,7 @@ class LNmodel:
 
 				## Find Spikes that do not fall too close to the beginning or end
 				S_beg_Data = np.where(Spikes_Data[0] > int(STA_TIME/self.INTSTEP*2))
-				S_end_Data = np.where(Spikes_Data[0] < 
-										(len(voltage_Data)-(int(STA_TIME/self.INTSTEP*2)+20)))
+				S_end_Data = np.where(Spikes_Data[0] < (len(voltage_Data)-(int(STA_TIME/self.INTSTEP*2)+20)))
 				Length_Data = np.arange(min(S_beg_Data[0]),max(S_end_Data[0])+1)
 				Spikes_Data = Spikes_Data[0][Length_Data],Spikes_Data[1][Length_Data]
 
@@ -86,8 +90,7 @@ class LNmodel:
 					Peak = voltage_Data[Peak]
 					Height = np.argmax(Peak)
 					Loc = Height + Spikes_Data[0][j-q]
-					RandLoc = np.random.random_integers(7000,(len(CURRENT)-
-														(STA_TIME/self.INTSTEP)))
+					RandLoc = np.random.random_integers(7000,(len(CURRENT)-(STA_TIME/self.INTSTEP)))
 					Range = np.arange(Loc-(STA_TIME/self.INTSTEP),Loc+
 											(STA_TIME/self.INTSTEP), dtype=int)
 					RandRANGE = np.arange(RandLoc-(STA_TIME/self.INTSTEP),RandLoc+
@@ -124,24 +127,25 @@ class LNmodel:
 	################
 	###COVARIANCE### 
 	################
-	def FindCovariance(self, SaveFiles = 'no'):
+	def FindCovariance(self):
 		"""
 		"""
 			## Covariance Analysis:
 		try:
-			self.Files = Database.Database()
-			self.Files.OpenDatabase(self.NAME[0] + '.h5')
 
+			self.Files.OpenDatabase(self.NAME + '.h5')
 			self.Files.QueryDatabase('Cov_Analysis','eigval')
 			
-			print 'Successfully loaded {0} data Cov file'.format(self.NAME[0])
+			print 'Successfully loaded {0} data Cov file'.format(self.NAME)
 			self.Cov = 'Full'
+			self.Files.CloseDatabase()
+			
 		except :
 			self.Files.CreateGroup('Cov_Analysis')
-			print 'No {0} Cov files, now generating. This could take several minutes'.format(self.NAME[0])
+			print 'No {0} Cov files, now generating. This could take several minutes'.format(self.NAME)
 		if self.Cov == None:
 
-			STA_TIME = self.Files.QueryDatabase('STA_Analysis','STA_TIME')
+			STA_TIME = self.Files.QueryDatabase('STA_Analysis','STA_TIME')[0]
 			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
 			stimRecord = self.Files.QueryDatabase('STA_Analysis', 'stimRecord')
 			priorRecord = self.Files.QueryDatabase('STA_Analysis', 'priorRecord')
@@ -182,38 +186,48 @@ class LNmodel:
 			Data_Vect = V[:,I][:,:( STA_TIME / self.INTSTEP)]
 
 
-			self.Files.AddData2Database('cov', Data_C_delta, 'Covariance')
-			self.Files.AddData2Database('eigval', Data_E, 'Covariance')
-			self.Files.AddData2Database('eigvect', Data_Vect, 'Covariance')
+			self.Files.AddData2Database('cov', Data_C_delta, 'Cov_Analysis')
+			self.Files.AddData2Database('eigval', Data_E, 'Cov_Analysis')
+			self.Files.AddData2Database('eigvect', Data_Vect, 'Cov_Analysis')
 
 
 
 	## LN model analysis   ##
 	#########################
 		
-	def FindProjection(self, SaveFiles = 'no'):
+	def FindProjection(self):
 		
 		## Projection:
-		try: 
-			self.Projection = np.load('Data/' + str(self.data['name']) + 'Project.npz')
-			print 'Successfully loaded {0}  Projection file'.format(self.data['name'])
-		except IOError:
-			print 'No {0} projection file, now generating new'.format(self.data['name'])
-		if self.Projection == None:
+		try:
 
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			self.Files.QueryDatabase('Projection','STAproject')
+			print 'Successfully loaded {0} Projection data'.format(self.NAME)
 			
-			Prior = self.STA['priorRecord']
-			Prior = Prior[:,0:int(self.STA['STA_TIME']/self.INTSTEP)]
+			self.Project = 'Full'
+			self.Files.CloseDatabase()
 			
-			Current = self.STA['stimRecord']
-			Current = Current[:,0:int(self.STA['STA_TIME']/self.INTSTEP)]
-			sta = self.STA['STAstim']
-			sta = sta[0:int(self.STA['STA_TIME']/self.INTSTEP)]
-			sta = sta/lin.norm(sta)
+		except :
+			self.Files.CreateGroup('Projection')
+			print 'No {0} Projection files, now generating. This could take several minutes'.format(self.NAME)
+			
+		if self.Projection == None:
+			
+			STA_TIME = self.Files.QueryDatabase('STA_Analysis', 'STA_TIME')
+			Prior = self.Files.QueryDatabase('STA_Analysis','priorRecord')
+			stimRecord = self.Files.QueryDatabase('STA_Analysis', 'stimRecord')
+			STAstim = self.Files.QueryDatabase('STA_Analysis', 'STAstim')
+			
+			Prior = Prior[:,0:int(STA_TIME / self.INTSTEP)]
+			
+			Current = stimRecord
+			Current = Current[:,0:int(STA_TIME / self.INTSTEP)]
+			STAstim = STAstim[0:int(STA_TIME / self.INTSTEP)]
+			STAstim = STAstim/lin.norm(STAstim)
 
 			EigVect = self.Cov['eigvect']
-			Mode1 = EigVect[:int(self.STA['STA_TIME']/self.INTSTEP),0]
-			Mode2 = EigVect[:int(self.STA['STA_TIME']/self.INTSTEP),1]
+			Mode1 = EigVect[:int(STA_TIME / self.INTSTEP),0]
+			Mode2 = EigVect[:int(STA_TIME / self.INTSTEP),1]
 			del(EigVect)
 			
 
@@ -228,53 +242,59 @@ class LNmodel:
 				B =  Current[i,:]
 				Pr = Prior[i,:]
 
-				Priorproj[i] = np.dot(sta,Pr)
-				STAproj[i] = np.dot(sta,B)
+				Priorproj[i] = np.dot(STAstim,Pr)
+				STAproj[i] = np.dot(STAstim,B)
 				Mode1Pr[i] = np.dot(Mode1,Pr)
 				Mode2Pr[i] = np.dot(Mode2,Pr)
 				Mode1proj[i] = np.dot(Mode1,B)
 				Mode2proj[i] = np.dot(Mode2,B)
+
+
+			self.Files.AddData2Database('priorproject',Priorproj, 'Projection')
+			self.Files.AddData2Database('STAproject', STAproj, 'Projection')
+			self.Files.AddData2Database('Mode1Pr', Mode1Pr, 'Projection')
+			self.Files.AddData2Database('Mode2Pr', Mode2Pr, 'Projection')
+			self.Files.AddData2Database('Mode1proj', Mode1proj, 'Projection')
+			self.Files.AddData2Database('Mode2proj', Mode2proj, 'Projection')
+
+			self.Files.CloseDatabase()
 			
-			name = str(self.data['name'])
-			self.Projection = 	{
-								'priorproject': Priorproj,
-								'STAproject': STAproj,
-								'Mode1Pr': Mode1Pr,
-								'Mode2Pr': Mode2Pr,
-								'Mode1proj': Mode1proj,
-								'Mode2proj': Mode2proj,
-								'name': name
-								}
-			if SaveFiles.lower() == 'yes':			
-				np.savez('Data/' + name + 'Project.npz',
-						priorproject=Priorproj,
-						STAproject=STAproj,
-						Mode1Pr=Mode1Pr,
-						Mode2Pr=Mode2Pr,
-						Mode1proj=Mode1proj,
-						Mode2proj=Mode2proj,
-						name=name)
-						
 
 		
 		
-	def BayesPspike(self, BIN_SIZE = 0.5, SaveFiles = 'no'):
+	def BayesPspike(self, BIN_SIZE = 0.5):
 			## Pspike histograms to set up LN model:
 		try:
-			self.Bayes = np.load('Data/' + str(self.data['name']) + 'BayesPspike.npz')
-			print 'Successfully loaded {0} BayesPspike data file'.format(self.data['name'])
-			LNmodel.FindP_spike(self)
+
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			self.Files.QueryDatabase('Bayes','BINS')
+			print 'Successfully loaded {0} data Cov file'.format(self.NAME)
+			
+			self.Project = 'Full'
+
+			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
+			RawVolt = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
+			
+			LNmodel.FindP_spike(self, spikenum, RawVolt)
 			print '{0} spikes/sec'.format(self.Pspike)
-		except IOError:
-			print 'No {0} Pspike file, now generating new BayesPspike files'.format(self.data['name'])
+			self.Files.CloseDatabase()
+			
+		except :
+			
+			self.Files.CreateGroup('Bayes')
+			print 'No {0} Bayes files, now generating. This could take several minutes'.format(self.NAME)
+			
 		if self.Bayes == None:
 
-			Priorproject = self.Projection['priorproject']
-			STAproject = self.Projection['STAproject']
-			Mode1project = self.Projection['Mode1proj']
-			Mode2project = self.Projection['Mode2proj']
-			Mode1Noise = self.Projection['Mode1Pr']
-			Mode2Noise = self.Projection['Mode2Pr']
+			Priorproject = self.Files.QueryDatabase('Projection', 'priorproject')
+			STAproject = self.Files.QueryDatabase('Projection', 'STAproject')
+			Mode1project = self.Files.QueryDatabase('Projection', 'Mode1project')
+			Mode2project = self.Files.QueryDatabase('Projection', 'Mode2project')
+			Mode1Noise = self.Files.QueryDatabase('Projection', 'Mode1Noise')
+			Mode2Noise = self.Files.QueryDatabase('Projection', 'Mode2Noise')
+
+			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
+			RawVolt = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
 			
 			BINS = np.arange(-20,20,BIN_SIZE)
 			Prior_Hist = np.zeros(len(BINS)-1)
@@ -303,33 +323,36 @@ class LNmodel:
 					M12_Prior[i,j] = Total_Hist+1
 
 			
-			LNmodel.FindP_spike(self)
+			LNmodel.FindP_spike(self, spikenum, RawVolt)
 			print '{0} spikes/second'.format(self.Pspike)
 			
 			## Bayes Theorem:
 			Pspike_STA = STA_Hist * self.Pspike / Prior_Hist
 			Pspike_2d = M12_Spike * self.Pspike / M12_Prior
-			
-			self.Bayes = 	{
-								'Pspike_STA': Pspike_STA,
-								'Pspike_2d': Pspike_2d,
-								'BINS': BINS
-								}
-			if SaveFiles.lower() == 'yes':
-				np.savez('Data/' + str(self.data['name']) + 'BayesPspike.npz',
-						Pspike_STA=Pspike_STA,
-						Pspike_2d=Pspike_2d,
-						BINS = BINS)
+
+
+			self.Files.AddData2Database('Pspike_STA', Pspike_STA, 'Bayes')
+			self.Files.AddData2Database('Pspike_2d', Pspike_2d, 'Bayes')
+			self.Files.AddData2Database('BINS', BINS, 'Bayes')
+
+			self.Files.CloseDatabase()
 		
 
 		
-	def FindProbOfSpike(self, SaveFiles = 'no'):
+	def FindProbOfSpike(self):
 			## LNmodel final set up
 		try:
-			self.ProbOfSpike = np.load('Data/' + str(self.data['name']) + 'ProbOfSpike.npz')
-			print 'Successfully loaded {0} Pspike data file'.format(self.data['name'])
-		except IOError:
-			print 'No {0} LN file, now generating new Pspike files'.format(self.data['name'])
+			
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			self.Files.QueryDatabase('ProbOfSpike','Ps_2d')
+			print 'Successfully loaded {0} Prob of Spike files'.format(self.NAME)
+			self.Files.CloseDatabase()
+			
+		except :
+			
+			self.Files.CreateGroup('ProbOfSpike')
+			print 'No {0} Bayes files, now generating. This could take several minutes'.format(self.NAME)
+			
 		if self.ProbOfSpike == None:
 		
 			## LOAD EigenModes ##
@@ -369,30 +392,18 @@ class LNmodel:
 					loc2 = np.where(BINS==[S2[i-START]])
 					Ps_2d[i-START,j] = Pspike_2d[loc1,loc2]
 
-			"""
-			### FIND SPIKES IN DATA ###
-			Spikes = np.zeros((Voltage.shape[0],Voltage.shape[1]))
-			for i in range(0,Voltage.shape[1]):
-				foo = Voltage[:,i] > 0
-				Spikes[:,i],a = runs(foo)
-			"""
-			self.ProbOfSpike =	{
-									'Ps_2d': Ps_2d,
-									'Ps_STA': Ps_STA
-									}
-			if SaveFiles.lower() == 'yes':
-				np.savez('Data/' + str(self.data['name']) + 'ProbOfSpike.npz',
-						Ps_2d=Ps_2d,
-						Ps_STA=Ps_STA)
+			self.Files.AddData2Database('Ps_2d', Ps_2d, 'ProbOfSpike')
+			self.Files.AddData2Database('Ps_STA', Ps_STA, 'ProbOfSpike')
 
-
-	def FindP_spike(self):
+			self.Files.CloseDatabase()
+			
+			
+	def FindP_spike(self, spikenum, RawVolt):
 		"""
 		## in Hz. Spikes/len(one row)*dt*20(rows)/1000(msec/sec)
 		"""
 		
-		self.Pspike = self.STA['spikenum'] / (self.data['RawVolt'].shape[0]*
-						self.data['RawVolt'].shape[1] * self.INTSTEP / 1000.0) 
+		self.Pspike = spikenum / (RawVolt.shape[0] * RawVolt.shape[1] * self.INTSTEP / 1000.0) 
 
 
 
@@ -403,17 +414,18 @@ class LNmodel:
 class DataProcessing(LNmodel,Database.Database):
 
 	
-	def GetData(self, DIRECTORY = '/120511c3.mat', SaveName = 'Rebecca'):
+	def GetData(self, DIRECTORY, SaveName):
 		
 		try:
 			self.Files = Database.Database()
 			self.Files.OpenDatabase(SaveName + '.h5')
 			#= np.load('Data/' + SaveName + 'ProcessedData.npz')
-			self.NAME = np.array([SaveName])
+			self.NAME = np.array([SaveName])[0]
 			
 			SamplingRate = self.Files.QueryDatabase('DataProcessing','SamplingRate')
-			print 'Successfully opened {0} database.'.format(SaveName)
+			print 'Successfully found {0} database.'.format(SaveName)
 			self.data = 'Full'
+			self.Files.CloseDatabase()
 			
 		except :
 			
@@ -421,7 +433,7 @@ class DataProcessing(LNmodel,Database.Database):
 			print 'No preprocessed data. Now trying raw data.'
 
 		if self.data == None:
-			self.NAME = np.array([SaveName])
+			self.NAME = np.array([SaveName])[0]
 		
 			RawData = sio.loadmat(DIRECTORY)
 			SamplingRate = np.array([10000]) # in Hz
@@ -454,8 +466,7 @@ class DataProcessing(LNmodel,Database.Database):
 class NeuronModel(LNmodel, Database.Database):
 
 	
-	def GenModelData(self, Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv',
-					SaveName = 'Quad'):
+	def GenModelData(self, SaveData, Data, model = models.QUADmodel, params = 'EvolvedParam1_8.csv'):
 		"""
 		"""
 		try:
@@ -463,38 +474,47 @@ class NeuronModel(LNmodel, Database.Database):
 			self.Files.OpenDatabase(SaveName + '.h5')
 			self.NAME = np.array([SaveName])
 			
-			SamplingRate = self.Files.QueryDatabase('DataProcessing','SamplingRate')
-			print 'Successfully opened {0} database.'.format(SaveName)
+			DATA = Database.Database()
+			DATA.OpenDatabase(Data + '.h5')
+			SamplingRate = DATA.QueryDatabase('DataProcessing', 'SamplingRate')
+			
+			print 'Successfully opened {0} database.'.format(self.NAME)
+			self.Files.CloseDatabase()
+			
 		except :
 			
 			self.Files.CreateGroup('DataProcessing')
 			print 'No preprocessed data. Now trying raw data.'
 
 		if self.data == None:
-			self.INTSTEP = Data.data['SamplingRate']**-1.0 * 1000.0
+
+			DATA = Database.Database()
+			DATA.OpenDatabase(Data + '.h5')
+			self.INTSTEP = DATA.QueryDatabase('DataProcessing', 'INTSTEP')
+			RepLoc = DATA.QueryDatabase('DataProcessing', 'RepLoc')
+			RawStim = DATA.QueryDatabase('DataProcessing', 'RawStim')
+			RawVolt = DATA.QueryDatabase('DataProcessing', 'RawVolt')
+			RepStim = DATA.QueryDatabase('DataProcessing', 'RepStim')
 			
 			params = np.genfromtxt(params,delimiter=',')
 			
-			current = Data.data['RawStim'] * 100.0
+			current = RawStim * 100.0
 			ModelVolt = np.zeros((current.shape[0],current.shape[1]))
 			for i in range(0, current.shape[1]):
 				
 				ModelVolt[:,i] = model(params, current[:,i], self.INTSTEP)
 			
-			RepModelVolt = np.zeros((Data.data['RepLoc'].shape[1],
-									Data.data['RawVolt'].shape[1]))
-			RepStim = Data.data['RawStim']
-			for i in range ( 0 , Data.data['RawStim'].shape[1]):
+			RepModelVolt = np.zeros((RepLoc.shape[1], RawVolt.shape[1]))
+
+			for i in range ( 0 , RawStim.shape[1]):
 				RepModelVolt[:,i] = ModelVolt[Data.data['RepLoc'] , i]
 
-			INT = self.INTSTEP
-			
 			
 			self.Files.AddData2Database('SamplingRate', SamplingRate, 'DataProcessing')
-			self.Files.AddData2Database('INTSTEP', INT, 'DataProcessing')
+			self.Files.AddData2Database('INTSTEP', self.INTSTEP, 'DataProcessing')
 			self.Files.AddData2Database('RawVolt', ModelVolt, 'DataProcessing')
 			self.Files.AddData2Database('RawStim', current, 'DataProcessing')
-			self.Files.AddData2Database('RepLoc', Data.data['RepLoc'], 'DataProcessing')
+			self.Files.AddData2Database('RepLoc',RepLoc, 'DataProcessing')
 			self.Files.AddData2Database('RepVolt', RepModelVolt, 'DataProcessing')
 			self.Files.AddData2Database('RepStim', RepStim, 'DataProcessing')
 			self.Files.AddData2Database('ModelParams', params, 'DataProcessing')

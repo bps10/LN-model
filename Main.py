@@ -5,7 +5,7 @@ import matplotlib.pylab as plt
 import NeuronModels as models
 import NeuronFuncRepo as Neuron
 
-import LNplotting as LNplot
+#import LNplotting as LNplot
 
 ## To Do:
 ## 1. Putting it all together, plotting.
@@ -18,20 +18,21 @@ import LNplotting as LNplot
 
 ## Preprocess data:
 Data = Neuron.DataProcessing()
-Data.GetData('/120511c3.mat', 'Rebecca')
+Data.GetData('120511c3.mat', 'Rebecca')
 
-Data.STA_Analysis(180, SaveFiles = 'yes')
+Data.STA_Analysis(180)
 # Add STA plot call here.
 
-Data.FindCovariance(SaveFiles = 'yes')
+Data.FindCovariance()
 # Add Cov plot call here.
 
-Data.FindProjection(SaveFiles = 'yes')
+Data.FindProjection()
 # Add Projection plot call here.
 
-Data.BayesPspike(SaveFiles = 'yes')
+Data.BayesPspike()
 
-Data.FindProbOfSpike(SaveFiles = 'yes')
+Data.FindProbOfSpike()
+
 	# Add LNmodel plot call here.
 	
 	#####################################

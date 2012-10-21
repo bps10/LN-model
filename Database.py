@@ -31,7 +31,17 @@ class Database:
 	
 		loc = 'self.file.root.' + GroupName + '.' + DataName + '.read()'
 		return eval(loc)
-	
+
+	def RemoveGroup(self, GroupName):
+		
+		decision = raw_input('Are you absolutely sure you want to delete this group permenently? (y/n): ')
+
+		if decision.lower() == 'y' or decision.lower() == 'yes':
+			eval('self.file.root.' + GroupName + '._f_remove()')
+			print '{0} successfully deleted'.format(GroupName)
+		else:
+			print 'Ok, nothing changed.'
+				
 	def AddMetaData(self):
 
 		fnode.attrs.content_type = 'text/plain; charset=us-ascii'
@@ -39,7 +49,7 @@ class Database:
 	def CloseDatabase(self):
 		
 		self.file.close()
-		
+		print 'database closed'
 
 		
 
