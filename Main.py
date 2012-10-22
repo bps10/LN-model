@@ -5,7 +5,7 @@ import matplotlib.pylab as plt
 import NeuronModels as models
 import NeuronFuncRepo as Neuron
 
-#import LNplotting as LNplot
+import LNplotting as LNplot
 
 ## To Do:
 
@@ -19,6 +19,8 @@ import NeuronFuncRepo as Neuron
 ## Preprocess data:
 Data = Neuron.DataProcessing()
 Data.GetData('120511c3.mat', 'Rebecca')
+
+Data.FindSpikes()
 
 Data.STA_Analysis(180)
 # Add STA plot call here.

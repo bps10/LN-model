@@ -30,6 +30,7 @@ class Database:
 	def OpenDatabase(self, DatabaseName):
 	
 		self.file = tables.openFile(DatabaseName, mode = "a")
+		print '{0} database opened'.format(DatabaseName)
 		
 	def QueryDatabase(self, GroupName, DataName):
 	

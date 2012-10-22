@@ -1,6 +1,97 @@
 import numpy as np
 
 ## Models ##
+"""
+class NeuronModel(LNmodel, Database.Database):
+
+	
+	def GenModelData(self, SaveName, DataName,  params = 'EvolvedParam1_8.csv', model = models.QUADmodel):
+		
+		
+		try:
+			self.Files = Database.Database()
+			self.Files.OpenDatabase(SaveName + '.h5')
+			self.NAME = np.array([SaveName])[0]
+			self.Files.QueryDatabase('DataProcessing', 'SamplingRate')
+			
+			DATA = Database.Database()
+			DATA.OpenDatabase(DataName + '.h5')
+			SamplingRate = DATA.QueryDatabase('DataProcessing', 'SamplingRate')
+			
+			print 'Successfully opened {0} database.'.format(self.NAME)
+			self.Files.CloseDatabase()
+			self.data = 'Full'
+		except :
+			
+			self.Files.CreateGroup('DataProcessing')
+			print 'No preprocessed data. Now trying raw data.'
+
+		if self.data == None:
+
+			DATA = Database.Database()
+			DATA.OpenDatabase(DataName + '.h5')
+			self.INTSTEP = DATA.QueryDatabase('DataProcessing', 'INTSTEP')
+			RepLoc = DATA.QueryDatabase('DataProcessing', 'RepLoc')
+			RawStim = DATA.QueryDatabase('DataProcessing', 'RawStim')
+			RawVolt = DATA.QueryDatabase('DataProcessing', 'RawVolt')
+			RepStim = DATA.QueryDatabase('DataProcessing', 'RepStim')
+			DATA.CloseDatabase()
+			
+			params = np.genfromtxt(params,delimiter=',')
+			
+			current = RawStim * 100.0
+			ModelVolt = np.zeros((current.shape[0],current.shape[1]))
+			for i in range(0, current.shape[1]):
+				
+				ModelVolt[:,i] = model(params, current[:,i], self.INTSTEP)
+			
+			RepModelVolt = np.zeros((RepLoc.shape[1], RawVolt.shape[1]))
+
+			for i in range ( 0 , RawStim.shape[1]):
+				RepModelVolt[:,i] = ModelVolt[ RepLoc , i]
+
+			
+			self.Files.AddData2Database('INTSTEP', self.INTSTEP, 'DataProcessing')
+			self.Files.AddData2Database('RawVolt', ModelVolt, 'DataProcessing')
+			self.Files.AddData2Database('RawStim', current, 'DataProcessing')
+			self.Files.AddData2Database('RepLoc',RepLoc, 'DataProcessing')
+			self.Files.AddData2Database('RepVolt', RepModelVolt, 'DataProcessing')
+			self.Files.AddData2Database('RepStim', RepStim, 'DataProcessing')
+			self.Files.AddData2Database('ModelParams', params, 'DataProcessing')
+			self.Files.AddData2Database('name', np.array([SaveName]), 'DataProcessing')
+
+					
+			self.Files.CloseDatabase()		
+
+	## Analysis Functions ##
+	########################
+
+	def coinc_detection(Data_Spikes, Model_Spikes, DELTA):
+	
+		spike_reward = 0
+		max_spike = len(Model_Spikes)
+		max_spike_data = len(Data_Spikes)
+		if max_spike >= 1:
+
+			interval = DELTA/INTSTEP
+			counter = 0
+			spike_test = 0
+		
+			while spike_test < max_spike and counter < max_spike_data:
+				if ( Model_Spikes[spike_test] >= (Data_Spikes[counter] - interval) and
+				     Model_Spikes[spike_test] <= (Data_Spikes[counter] + interval) ):
+					spike_reward += 1
+					counter += 1
+					spike_test += 1
+			        elif Model_Spikes[spike_test] < Data_Spikes[counter] - interval:
+					spike_test += 1
+				elif Model_Spikes[spike_test] > Data_Spikes[counter] + interval:
+					counter += 1
+				
+		return spike_reward
+"""
+
+
 def EXPmodel(param, CURRENT):
     
     VOLTAGE = np.zeros(len(CURRENT))

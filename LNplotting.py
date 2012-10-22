@@ -1,29 +1,45 @@
 import numpy as np
 from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pylab as plt
-import sys,os
-sys.path.append('C:\\Users\\Brian\\Documents\\Neitz-Lab\\Python')
-import PlottingFun
+import PlottingFun as pf
 
-class LNplotting(PlottingFun.PlottingFun):
+class LNplotting():
 
-	def Hist(BIN_SIZE):
-		BINS = np.linspace(0,len(Spikes),len(Spikes)/BIN_SIZE*INTSTEP)
-		Data_Hist = np.zeros(len(BINS))
-		STA_Hist = np.zeros(len(BINS))
-		Model_Hist = np.zeros(len(BINS))
-		for i in range(0,len(BINS)-1):
-			Start = BINS[i]
-			End = BINS[i+1]
-			Data_Total = sum(Spikes[Start:End])
-			STA_Total = np.mean(Ps_STA[Start:End])
-			Model_Total = np.mean(Ps_2d[Start:End])
+	def Hist(self, BIN_SIZE, option = 1):
+		try:
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			Ps_STA = self.Files.QueryDatabase('ProbOfSpike', 'Ps_STA')
+			Ps_2d = self.Files.QueryDatabase('ProbOfSpike', 'Ps_2d')
+			INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')
 			
-			Data_Hist[i] = Data_Total
-			STA_Hist[i] = STA_Total
-			Model_Hist[i] = Model_Total
-		Data_Hist = Data_Hist/BIN_SIZE*1000.0
-		return Data_Hist, STA_Hist, Model_Hist,BINS
+			if option == 1:
+				Spikes = self.Files.QueryDatabase('Spikes', 'RepSpikes')
+			elif option == 0:
+				Spikes = self.Files.QueryDatabase('Spikes', 'Spikes')
+				
+		except:
+			print 'Sorry error. Either no Bayes or Spikes files found.'
+			
+		BINS = np.linspace(0, Spikes.shape[0], Spikes.shape[0] / BIN_SIZE * INTSTEP)
+		Data_Hist = np.zeros((len( BINS ), Spikes.shape[1]) )
+		STA_Hist = np.zeros((len( BINS ), Spikes.shape[1]) )
+		Model2d_Hist = np.zeros((len( BINS ), Spikes.shape[1]) )
+
+		for j in range(0, Spikes.shape[1]):
+			for i in range(0,len( BINS ) - 1):
+				Start = BINS[i]
+				End = BINS[i+1]
+				Data_Total = np.sum( Spikes[Start:End, j] )
+				STA_Total = np.mean( Ps_STA[Start:End, j] )
+				Model2d_Total = np.mean( Ps_2d[Start:End, j] )
+			
+				Data_Hist[i,j] = Data_Total
+				STA_Hist[i,j] = STA_Total
+				Model2d_Hist[i,j] = Model_Total
+			
+		Data_Hist = Data_Hist / BIN_SIZE # * 1000.0
+		
+		return Data_Hist, STA_Hist, Model2d_Hist, BINS
 
 
 	def histOutline(self, DataType):
@@ -56,7 +72,7 @@ class LNplotting(PlottingFun.PlottingFun):
 	def PlotHistOutline(self):
 
 		## PLOT HISTOGRAM OUTLINES ##
-		Data_Hist,STA_Hist,Model_Hist,BINS = Neuron.Hist(HIST_BIN_SIZE)
+		Data_Hist,STA_Hist,Model_Hist,BINS = Hist(self, HIST_BIN_SIZE)
 		
 		bins,Outline_Data_Hist = histOutline(Data_Hist,BINS)
 		bins,Outline_STA_Hist = histOutline(STA_Hist,BINS)
@@ -95,7 +111,7 @@ class LNplotting(PlottingFun.PlottingFun):
 		plt.show()
 
 		
-	def PSTH():
+	def PSTH(self):
 		TimeRes = np.array([0.1,0.25,0.5,1,2.5,5.0,10.0,25.0,50.0,100.0])
 
 		Projection_PSTH = np.zeros((2,len(TimeRes)))
@@ -110,7 +126,8 @@ class LNplotting(PlottingFun.PlottingFun):
 		import matplotlib.font_manager as fm
 		
 		plt.figure()
-		plt.semilogx(TimeRes,Projection_PSTH[0,:],'gray',TimeRes,Projection_PSTH[1,:],'k',linewidth=3, marker='o', markersize = 12)
+		plt.semilogx(TimeRes,Projection_PSTH[0,:],'gray',TimeRes,Projection_PSTH[1,:],'k',
+			     linewidth=3, marker='o', markersize = 12)
 		plt.xlabel('Time Resolution, ms',fontsize=25)
 		plt.xticks(fontsize=25)
 		#plt.axis["right"].set_visible(False)
@@ -121,16 +138,21 @@ class LNplotting(PlottingFun.PlottingFun):
 		plt.tight_layout()
 		plt.show()
 
+"""		
+	def STAplot(self):
+		try:
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			STA_TIME = self.Files.QueryDatabase('STA_Analysis', 'STA_TIME')
+			STA_Current = self.Files.QueryDatabase('STA_Analysis', 'STAstim')
 		
-	def STAplot(STA):
-
 		fig = plt.figure(figsize=(12,8))
-		X = np.arange(-STA_TIME/INTSTEP,STA_TIME/INTSTEP,dtype=float)*INTSTEP
+		X = np.arange(-STA_TIME / self.INTSTEP, STA_TIME / self.INTSTEP, dtype=float) * self.INTSTEP
 		ax = fig.add_subplot(111)
-		ax.plot(X[0:(STA_TIME/INTSTEP)+50], Data_STA_Current[0:(STA_TIME/INTSTEP)+50],
+		ax.plot(X[0:(STA_TIME / self.INTSTEP) + 50], STA_Current[0:(STA_TIME / self.INTSTEP) + 50],
 					linewidth=3, color='k')
 		plt.xticks(fontsize = 20)
 		plt.yticks(fontsize = 20)
 		plt.ylabel('current(pA)', fontsize = 20)
 		plt.legend(('data'), loc='upper right')
 		plt.show()
+"""

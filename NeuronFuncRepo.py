@@ -5,6 +5,7 @@ import scipy.io as sio
 import numpy.linalg as lin
 import NeuronModels as models
 import Database as Database
+import LNplotting as LNplot
 
 # TODO:
 # 0. Running list of what has been done to the data.
@@ -14,8 +15,10 @@ import Database as Database
 # 4. MetaData. Or Info Group.
 # 5. Plotting
 # 6. Move neuron models into NeuronModels
+# 7. PyCUDA
+# 8. STA runs should be integrated with Spikes, which needs to be finished.
 
-class LNmodel:
+class LNmodel(LNplot.LNplotting):
 
 	def __init__(self):
 		self.NAME = None
@@ -27,6 +30,7 @@ class LNmodel:
 		self.ProbOfSpike = None
 		self.INTSTEP = None
 		self.Files = None
+		self.Spikes = None
 		
 	def FindIntStep(self):
 		"""
@@ -405,6 +409,51 @@ class LNmodel:
 
 			self.Files.CloseDatabase()
 			
+
+	def FindSpikes(self):
+		
+		try:
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			self.Files.QueryDatabase('Spikes','Spikes')
+			print 'Successfully loaded {0} Spikes files'.format(self.NAME)
+			self.Files.CloseDatabase()
+			
+			self.Spikes = 'Full'
+		except :
+			
+			self.Files.CreateGroup('Spikes')
+			print 'No {0} Spikes file, now generating.'.format(self.NAME)
+
+		if self.Spikes == None:
+			try:
+				self.Files.OpenDatabase(self.NAME + '.h5')
+				RepVolt = self.Files.QueryDatabase('DataProcessing', 'RepVolt') * 1000.0
+				RepStim = self.Files.QueryDatabase('DataProcessing', 'RepStim')
+				self.Files.CloseDatabase()
+			
+				RepSpikes = np.zeros((RepVolt.shape[0],RepVolt.shape[1]))
+				for i in range(0,RepVolt.shape[1]):
+					foo = RepVolt[:,i] > 0
+					RepSpikes[:,i] = foo
+				
+			except :
+				print 'No repetitive data found in {0} files'.format(self.NAME)
+
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			Stim = self.Files.QueryDatabase('DataProcessing', 'RawStim')
+			Volt = self.Files.QueryDatabase('DataProcessing', 'RawVolt') * 1000.0
+
+			Spikes = np.zeros((Volt.shape[0],Volt.shape[1]))
+			for i in range(0,Volt.shape[1]):
+				foo = Volt[:,i] > 0
+				Spikes[:,i] = foo
+
+
+			self.Files.AddData2Database('Spikes', Spikes, 'Spikes')
+			self.Files.AddData2Database('RepSpikes', RepSpikes, 'Spikes')
+
+			self.Files.CloseDatabase()
+				
 			
 	def FindP_spike(self, spikenum, RawVolt):
 		"""
@@ -414,8 +463,20 @@ class LNmodel:
 		self.Pspike = spikenum / (RawVolt.shape[0] * RawVolt.shape[1] * self.INTSTEP / 1000.0) 
 
 
+## General functions ##
+#######################
+	def runs(bits):
 
-
+		# make sure all runs of ones are well-bounded
+		bounded = np.hstack(([0], bits, [0]))
+		# get 1 at run starts and -1 at run ends
+		difs = np.diff(bounded)
+		run_starts, = np.where(difs > 0)
+		run_ends, = np.where(difs < 0)
+		# eliminate noise or short duration chirps
+		length = run_ends-run_starts
+	
+		return run_starts
 
 ## Data Preprocessing ##
 ########################
@@ -520,7 +581,6 @@ class NeuronModel(LNmodel, Database.Database):
 				RepModelVolt[:,i] = ModelVolt[ RepLoc , i]
 
 			
-			self.Files.AddData2Database('SamplingRate', SamplingRate, 'DataProcessing')
 			self.Files.AddData2Database('INTSTEP', self.INTSTEP, 'DataProcessing')
 			self.Files.AddData2Database('RawVolt', ModelVolt, 'DataProcessing')
 			self.Files.AddData2Database('RawStim', current, 'DataProcessing')
@@ -560,20 +620,7 @@ class NeuronModel(LNmodel, Database.Database):
 				
 		return spike_reward
 
-## General functions ##
-#######################
-def runs(bits):
 
-	# make sure all runs of ones are well-bounded
-	bounded = np.hstack(([0], bits, [0]))
-	# get 1 at run starts and -1 at run ends
-	difs = np.diff(bounded)
-	run_starts, = np.where(difs > 0)
-	run_ends, = np.where(difs < 0)
-	# eliminate noise or short duration chirps
-	length = run_ends-run_starts
-	
-	return run_starts, run_ends
 		
 
 
