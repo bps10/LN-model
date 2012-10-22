@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pylab as plt
@@ -10,13 +11,15 @@ class LNplotting():
 			self.Files.OpenDatabase(self.NAME + '.h5')
 			Ps_STA = self.Files.QueryDatabase('ProbOfSpike', 'Ps_STA')
 			Ps_2d = self.Files.QueryDatabase('ProbOfSpike', 'Ps_2d')
-			INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')
+			INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')[0]
+			
 			
 			if option == 1:
 				Spikes = self.Files.QueryDatabase('Spikes', 'RepSpikes')
 			elif option == 0:
 				Spikes = self.Files.QueryDatabase('Spikes', 'Spikes')
 				
+			self.Files.CloseDatabase()	
 		except:
 			print 'Sorry error. Either no Bayes or Spikes files found.'
 			
@@ -35,19 +38,21 @@ class LNplotting():
 			
 				Data_Hist[i,j] = Data_Total
 				STA_Hist[i,j] = STA_Total
-				Model2d_Hist[i,j] = Model_Total
-			
-		Data_Hist = Data_Hist / BIN_SIZE # * 1000.0
+				Model2d_Hist[i,j] = Model2d_Total
+		
+		Data_Hist =Data_Hist.mean(1)
+		STA_Hist = STA_Hist.mean(1)
+		Model2d_Hist = Model2d_Hist.mean(1)
+		
+		Data_Hist = Data_Hist / BIN_SIZE * 1000.0
 		
 		return Data_Hist, STA_Hist, Model2d_Hist, BINS
 
 
-	def histOutline(self, DataType):
+	def histOutline(self, histIn, binsIn):
 		"""
 		"""
-		
-		binsIn = self.Bayes['BINS']
-		histIn = self.Bayes[DataType]
+
 		
 		stepSize = binsIn[1] - binsIn[0]
 	 
@@ -65,58 +70,76 @@ class LNplotting():
 		data[0] = 0
 		data[-1] = 0 
 		
-		self.histOutBins = bins
-		self.histOutData = data
+		return bins, data
 
 
-	def PlotHistOutline(self):
 
+	def PlotHistOutline(self, HIST_BIN_SIZE = 10):
+		try:
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')[0]
+			Ps_2d = self.Files.QueryDatabase('ProbOfSpike', 'Ps_2d')
+			Current = self.Files.QueryDatabase('DataProcessing', 'RepStim')
+			Current = Current[:,0] # each rep is identical.
+		except :
+			print 'Sorry no data'
 		## PLOT HISTOGRAM OUTLINES ##
-		Data_Hist,STA_Hist,Model_Hist,BINS = Hist(self, HIST_BIN_SIZE)
+		START = 1000
+		END = 10000
+		Data_Hist,STA_Hist,Model_Hist,BINS = self.Hist(HIST_BIN_SIZE)
 		
-		bins,Outline_Data_Hist = histOutline(Data_Hist,BINS)
-		bins,Outline_STA_Hist = histOutline(STA_Hist,BINS)
-		bins,Outline_Model_Hist = histOutline(Model_Hist,BINS)
+		bins,Outline_Data_Hist = self.histOutline(Data_Hist,BINS)
+		bins,Outline_STA_Hist = self.histOutline(STA_Hist,BINS)
+		bins,Outline_Model_Hist = self.histOutline(Model_Hist,BINS)
 
 		
 		fig = plt.figure(figsize=(12,8))
-		ax = fig.add_subplot(411)
-		ax.axes.get_xaxis().set_ticks([])
-		ax.plot(bins, Outline_STA_Hist, linewidth=2, color='k')
+		ax1 = fig.add_subplot(411)
+		ax1.axes.get_xaxis().set_ticks([])
+		ax1.plot(bins, Outline_STA_Hist, linewidth=2, color='k')
 		plt.ylim([-10,125])
-		ax.axis('off')
+		ax1.axis('off')
 
-		ax4 = fig.add_subplot(412)
-		ax4.axes.get_xaxis().set_ticks([])
-		ax4.plot(np.ones(50)*(max(bins)-10),np.arange(30,80), linewidth=6 , color='k')
-		ax4.plot(bins, Outline_Model_Hist, linewidth=2, color='k')
+		ax2 = fig.add_subplot(412)
+		ax2.axes.get_xaxis().set_ticks([])
+		ax2.plot(np.ones(50)*(max(bins)-10),np.arange(30,80), linewidth=6 , color='k')
+		ax2.plot(bins, Outline_Model_Hist, linewidth=2, color='k')
 		plt.ylim([-10,125])
-		ax4.axis('off')
+		ax2.axis('off')
 
-		ax5 = fig.add_subplot(413)
-		ax5.axes.get_xaxis().set_ticks([])
-		ax5.plot(np.ones(50)*(max(bins)-10),np.arange(30,80), linewidth=6 , color='k')
-		ax5.plot( np.arange(0, (100/INTSTEP)) ,np.ones(100/INTSTEP)*-24, linewidth=6, color='k')
-		ax5.plot(bins, Outline_Data_Hist, linewidth=2, color='k')
+		ax3 = fig.add_subplot(413)
+		ax3.axes.get_xaxis().set_ticks([])
+		ax3.plot(np.ones(50)*(max(bins)-10),np.arange(30,80), linewidth=6 , color='k')
+		ax3.plot( np.arange(0, (100/INTSTEP)) ,np.ones(100/INTSTEP)*-24, linewidth=6, color='k')
+		ax3.plot(bins, Outline_Data_Hist, linewidth=2, color='k')
 		plt.ylim([-25,225])
-		ax5.axis('off')
+		ax3.axis('off')
 
-		ax6 = fig.add_subplot(414)
-		ax6.plot(np.arange(1,len(Ps_2d))*INTSTEP, Current[START:END], linewidth=2, color='k')
-		#ax6.plot(np.arange(100,(1000/INTSTEP)+100),np.ones(1000/INTSTEP)+4.5, linewidth=4, color='k')
-				 #plt.xlabel('time (msec)', fontsize =20)
-		#plt.xticks(fontsize=20)
-		ax6.axis('off')
+		ax4 = fig.add_subplot(414)
+		ax4.plot(np.arange(0,len(Current))*INTSTEP, Current, linewidth=2, color='k')
+		ax4.axis('off')
 		plt.tight_layout()
 		plt.show()
 
 		
-	def PSTH(self):
+	def PSTH(self, Data, STA, Model2d):
+	
+		try:
+			self.Files.OpenDatabase(self.NAME + '.h5')
+			Ps_STA = self.Files.QueryDatabase('ProbOfSpike', 'Ps_STA')
+			Ps_2d = self.Files.QueryDatabase('ProbOfSpike', 'Ps_2d')
+			INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')[0]
+			self.Files.CloseDatabase()
+			print 'All data found. Computing.'
+				
+		except:
+			print 'Sorry error. Either no Bayes or Spikes files found.'
+			
 		TimeRes = np.array([0.1,0.25,0.5,1,2.5,5.0,10.0,25.0,50.0,100.0])
 
 		Projection_PSTH = np.zeros((2,len(TimeRes)))
 		for i in range(0,len(TimeRes)):
-			Data_Hist,STA_Hist,Model_Hist,B = Hist(TimeRes[i])
+			Data_Hist,STA_Hist,Model_Hist,B = Hist(TimeRes[i], Data, STA, Model2d)
 			data = Data_Hist/np.linalg.norm(Data_Hist)
 			sta = STA_Hist/np.linalg.norm(STA_Hist)
 			model = Model_Hist/np.linalg.norm(Model_Hist)
@@ -138,21 +161,37 @@ class LNplotting():
 		plt.tight_layout()
 		plt.show()
 
-"""		
-	def STAplot(self):
+		
+	def STAplot(self, option = 0):
 		try:
 			self.Files.OpenDatabase(self.NAME + '.h5')
-			STA_TIME = self.Files.QueryDatabase('STA_Analysis', 'STA_TIME')
+			STA_TIME = self.Files.QueryDatabase('STA_Analysis', 'STA_TIME')[0]
 			STA_Current = self.Files.QueryDatabase('STA_Analysis', 'STAstim')
+			INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')[0][0]
+		except:
+			print 'Sorry no data found'
 		
-		fig = plt.figure(figsize=(12,8))
-		X = np.arange(-STA_TIME / self.INTSTEP, STA_TIME / self.INTSTEP, dtype=float) * self.INTSTEP
-		ax = fig.add_subplot(111)
-		ax.plot(X[0:(STA_TIME / self.INTSTEP) + 50], STA_Current[0:(STA_TIME / self.INTSTEP) + 50],
-					linewidth=3, color='k')
-		plt.xticks(fontsize = 20)
-		plt.yticks(fontsize = 20)
-		plt.ylabel('current(pA)', fontsize = 20)
-		plt.legend(('data'), loc='upper right')
-		plt.show()
-"""
+		X = np.arange(-STA_TIME / INTSTEP, STA_TIME / INTSTEP, dtype=float) * INTSTEP
+		
+		if option == 1:
+			fig = plt.figure()
+			ax = fig.add_subplot(111)
+			ax.plot(X[0:(STA_TIME/INTSTEP)],STA_Current[0:(STA_TIME/INTSTEP)], 
+						linewidth=3, color='k')
+			ax.plot(np.arange(-190,-170),np.ones(20)*0.35, linewidth=5,color='k')
+			ax.plot(np.ones(200)*-170,np.arange(0.35,0.549,0.001),linewidth=5,color='k')
+			ax.plot(np.arange(-200,0),np.zeros(200), 'k--', linewidth=2)
+			plt.axis('off')
+			plt.show()
+		
+		if option == 0:
+			fig = plt.figure(figsize=(12,8))
+			ax = fig.add_subplot(111)
+			ax.plot(X[0:(STA_TIME / INTSTEP) + 50], STA_Current[0:(STA_TIME / INTSTEP) + 50],
+						linewidth=3, color='k')
+			plt.xticks(fontsize = 20)
+			plt.yticks(fontsize = 20)
+			plt.ylabel('current(pA)', fontsize = 20)
+			plt.legend(('data'), loc='upper right')
+			plt.show()
+

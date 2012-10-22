@@ -47,7 +47,8 @@ print ' '
 
 	## Preprocess Model:
 Model = Neuron.NeuronModel()
-Model.GenModelData(SaveName = 'Quad', DataName= 'Rebecca', model = models.QUADmodel, params = 'EvolvedParam1_8.csv')
+Model.GenModelData(SaveName = 'Quad', DataName= 'Rebecca', model = models.QUADmodel, 
+					params = 'EvolvedParam1_8.csv')
 	
 Model.STA_Analysis(180)
 	# Add STA plot call here.

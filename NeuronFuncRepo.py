@@ -81,8 +81,8 @@ class LNmodel(LNplot.LNplotting):
 				
 				CUR_IND+=1
 			 
-				Spikes_Data = voltage_Data > 0
-				Spikes_Data = runs(Spikes_Data)
+				Spikes = voltage_Data > 0
+				Spikes_Data = runs(Spikes)
 
 				## Find Spikes that do not fall too close to the beginning or end
 				S_beg_Data = np.where(Spikes_Data[0] > int(STA_TIME/self.INTSTEP*2))
@@ -279,12 +279,6 @@ class LNmodel(LNplot.LNplotting):
 			
 			self.Bayes = 'Full'
 
-			spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
-			RawVolt = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
-			
-			LNmodel.FindP_spike(self, spikenum, RawVolt)
-			print '{0} spikes/second'.format(self.Pspike)
-
 			self.Files.CloseDatabase()
 			
 		except :
@@ -330,10 +324,7 @@ class LNmodel(LNplot.LNplotting):
 					M12_Spike[i,j] = Total+1
 					M12_Prior[i,j] = Total_Hist+1
 
-			
-			LNmodel.FindP_spike(self, spikenum, RawVolt)[0]
-			print '{0} spikes/second'.format(self.Pspike)
-			
+			LNmodel.FindP_spike(self, spikenum, RawVolt)
 			## Bayes Theorem:
 			Pspike_STA = STA_Hist * self.Pspike / Prior_Hist
 			Pspike_2d = M12_Spike * self.Pspike / M12_Prior
@@ -345,7 +336,13 @@ class LNmodel(LNplot.LNplotting):
 
 			self.Files.CloseDatabase()
 		
-
+		self.Files.OpenDatabase(self.NAME + '.h5')
+		spikenum = self.Files.QueryDatabase('STA_Analysis', 'spikenum')
+		RawVolt = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
+		
+		LNmodel.FindP_spike(self, spikenum, RawVolt)
+		print '{0} spikes/second'.format(self.Pspike)
+		
 		
 	def FindProbOfSpike(self):
 			## LNmodel final set up
@@ -465,18 +462,18 @@ class LNmodel(LNplot.LNplotting):
 
 ## General functions ##
 #######################
-	def runs(bits):
+def runs(bits):
 
-		# make sure all runs of ones are well-bounded
-		bounded = np.hstack(([0], bits, [0]))
-		# get 1 at run starts and -1 at run ends
-		difs = np.diff(bounded)
-		run_starts, = np.where(difs > 0)
-		run_ends, = np.where(difs < 0)
-		# eliminate noise or short duration chirps
-		length = run_ends-run_starts
-	
-		return run_starts
+	# make sure all runs of ones are well-bounded
+	bounded = np.hstack(([0], bits, [0]))
+	# get 1 at run starts and -1 at run ends
+	difs = np.diff(bounded)
+	run_starts, = np.where(difs > 0)
+	run_ends, = np.where(difs < 0)
+	# eliminate noise or short duration chirps
+	length = run_ends-run_starts
+
+	return run_starts, run_ends
 
 ## Data Preprocessing ##
 ########################
