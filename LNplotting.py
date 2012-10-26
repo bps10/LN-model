@@ -40,11 +40,11 @@ class LNplotting():
 				STA_Hist[i,j] = STA_Total
 				Model2d_Hist[i,j] = Model2d_Total
 		
-		Data_Hist =Data_Hist.mean(1)
+		Data_Hist = Data_Hist.mean(1)
 		STA_Hist = STA_Hist.mean(1)
 		Model2d_Hist = Model2d_Hist.mean(1)
 		
-		Data_Hist = Data_Hist / BIN_SIZE * 1000.0
+		#Data_Hist = Data_Hist / BIN_SIZE #* 1000.0
 		
 		return Data_Hist, STA_Hist, Model2d_Hist, BINS
 
@@ -122,24 +122,14 @@ class LNplotting():
 		plt.show()
 
 		
-	def PSTH(self, Data, STA, Model2d):
+	def PSTH(self):
 	
-		try:
-			self.Files.OpenDatabase(self.NAME + '.h5')
-			Ps_STA = self.Files.QueryDatabase('ProbOfSpike', 'Ps_STA')
-			Ps_2d = self.Files.QueryDatabase('ProbOfSpike', 'Ps_2d')
-			INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')[0]
-			self.Files.CloseDatabase()
-			print 'All data found. Computing.'
-				
-		except:
-			print 'Sorry error. Either no Bayes or Spikes files found.'
 			
 		TimeRes = np.array([0.1,0.25,0.5,1,2.5,5.0,10.0,25.0,50.0,100.0])
 
 		Projection_PSTH = np.zeros((2,len(TimeRes)))
 		for i in range(0,len(TimeRes)):
-			Data_Hist,STA_Hist,Model_Hist,B = Hist(TimeRes[i], Data, STA, Model2d)
+			Data_Hist,STA_Hist,Model_Hist,B = Hist(TimeRes[i])
 			data = Data_Hist/np.linalg.norm(Data_Hist)
 			sta = STA_Hist/np.linalg.norm(STA_Hist)
 			model = Model_Hist/np.linalg.norm(Model_Hist)
@@ -183,6 +173,7 @@ class LNplotting():
 			ax.plot(np.arange(-200,0),np.zeros(200), 'k--', linewidth=2)
 			plt.axis('off')
 			plt.show()
+			
 		
 		if option == 0:
 			fig = plt.figure(figsize=(12,8))

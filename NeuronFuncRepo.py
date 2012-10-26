@@ -1,12 +1,12 @@
 from __future__ import division
 import numpy as np
-import matplotlib.pylab as plt
 import scipy.io as sio
 import numpy.linalg as lin
 import NeuronModels as models
 import Database as Database
 import LNplotting as LNplot
 
+"""
 # TODO:
 # 0. Running list of what has been done to the data.
 # 1. Find Spike locations in GenData() - integrate w Runs into single function.
@@ -17,6 +17,7 @@ import LNplotting as LNplot
 # 6. Move neuron models into NeuronModels
 # 7. PyCUDA
 # 8. STA runs should be integrated with Spikes, which needs to be finished.
+"""
 
 class LNmodel(LNplot.LNplotting):
 
@@ -61,12 +62,8 @@ class LNmodel(LNplot.LNplotting):
 			self.INTSTEP = self.Files.QueryDatabase('DataProcessing', 'INTSTEP')[0][0]
 			current = self.Files.QueryDatabase('DataProcessing', 'RawStim')
 			voltage = self.Files.QueryDatabase('DataProcessing', 'RawVolt')
-			
-			TIME = len(current)*self.INTSTEP
 
 			## Create Files ##
-			STA_CURRENT = np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
-			STA_VOLTAGE = np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
 			
 			Data_mV_Record = np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
 			Data_C_Record= np.zeros((current.shape[1]*1000,int((STA_TIME/self.INTSTEP*2))))
