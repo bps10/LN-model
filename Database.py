@@ -81,11 +81,11 @@ class Database():
 
         if Directory == None:
             
-            self.NeuronData = sio.loadmat(Directory + '/' + NeuronName + '/' + FileName + '.mat' )
+            self.NeuronData = sio.loadmat(Directory + '/' + FileName + '.mat' )
         
         else:
             
-            self.NeuronData = sio.loadmat(Directory + '/' + NeuronName + '/' + FileName + '.mat')
+            self.NeuronData = sio.loadmat(Directory + '/' + FileName + '.mat')
 
     def getAllFiles(self, Directory, suffix = None, subdirectories = 1):
         """
@@ -114,7 +114,7 @@ class Database():
     def ImportAllData(self, NeuronName, Directory):
 
         #self.OpenDatabase(Name + '.h5')
-        self.getAllFiles(Directory + '/' + NeuronName)
+        self.getAllFiles(Directory)
         self.CreateGroup(NeuronName)
 
         for i in range(0, self.DirFiles.shape[0] ):
@@ -123,7 +123,7 @@ class Database():
             self.OpenMatlabData(FileName, Directory, NeuronName)
             self.ImportDataFromMatlab(FileName, NeuronName)
 
-        self.AddGitVersion('InitialImport')
+        self.AddGitVersion(NeuronName, FileName + '_InitialImport')
         self.CloseDatabase()
 
 
@@ -191,11 +191,26 @@ class Database():
             if STRINGS[i] == 1:
 
                     self.AddData2Database(name, np.array([ Data ], dtype=str), NeuronName + '.' + FileName + '.params')
- 
+
+
+    def GetChildList(self, FILE, parent = None):
+        if parent == None:
+            foo = 'self.file.root.' + FILE
+            ChildList = eval(foo + '.__members__')
+        else:
+            foo = 'self.file.root.' + parent + '.' + FILE
+            ChildList = eval(foo + '.__members__')
+            
+        return ChildList
                           
-    def Exists(self, FILE):
+    def Exists(self, FILE, parent = None):
         
-        TF = self.file.__contains__('/' + FILE)
+        if parent == None:
+            TF = self.file.root.__contains__(FILE)
+        
+        else:
+            foo = 'self.file.root.' + parent 
+            TF = foo.__contains__( FILE)
         return TF
 
 
@@ -204,20 +219,20 @@ class Database():
         self.GitRepo = git.Repo(WorkingDir)
 
 
-    def AddGitVersion(self, Action):
+    def AddGitVersion(self, NeuronName, Action):
 
         self.GetGitRepo()
        
-        if self.Exists('git') == False:
+        if self.Exists('git', NeuronName) == False:
 
-            self.CreateGroup('git')
+            self.CreateGroup('git', NeuronName)
 
         dat = np.array([], dtype = str)
         for i in range(0,5):
 
             dat = np.append(dat, str(self.GitRepo.head.log()[-1][:][i]) )
 
-        self.AddData2Database(Action, dat, 'git')
+        self.AddData2Database(Action, dat, NeuronName + '.git')
         
                 
 
@@ -225,6 +240,3 @@ class Database():
         
         self.file.close()
         print "database closed"
-
-#Db = Database()
-#Db.ImportAllData('Oct0212Bc8')
