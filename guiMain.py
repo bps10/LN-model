@@ -73,7 +73,7 @@ class FilterTestWidget(QWidget):
          
         listButton = QPushButton(u"Change List")
         button = QPushButton(u"New Query: %s" % title)
-        
+        #itemDoubleClicked
         self.connect(listButton, SIGNAL('clicked()'), self.dud)
         self.connect(button, SIGNAL('clicked()'), self.query_database)
         vlayout = QVBoxLayout()
