@@ -7,7 +7,7 @@ Created on Fri Oct 26 13:30:48 2012
 from guidata.dataset.qtwidgets import DataSetShowGroupBox
 import Database as Db
 from guidata.qt.QtGui import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                              QMainWindow, QLineEdit, QListView, QListWidget)
+                              QMainWindow, QLineEdit, QListView, QTreeWidget, QTreeWidgetItem)
 from guidata.qt.QtCore import (SIGNAL, QAbstractListModel, QModelIndex, QVariant, 
                                Qt)
 from guidata.dataset.dataitems import StringItem, DirectoryItem
@@ -63,6 +63,7 @@ class FilterTestWidget(QWidget):
         #DatabaseList = QListView().setModel(self.tree)
         #DatabaseList.QListView.setViewMode(QListView.ListMode) 
         # create table
+        self.databaseScroll = databaseListModel()
         
         list_data = self.tree
         listmodel = MyListModel(list_data, self)
@@ -74,11 +75,12 @@ class FilterTestWidget(QWidget):
         listButton = QPushButton(u"Change List")
         button = QPushButton(u"New Query: %s" % title)
         #itemDoubleClicked
-        self.connect(listButton, SIGNAL('clicked()'), self.dud)
+        self.connect(listButton, SIGNAL('clicked()'), self.but_clicked)
         self.connect(button, SIGNAL('clicked()'), self.query_database)
+
         vlayout = QVBoxLayout()
         hlayout = QHBoxLayout()
-        vlayout.addWidget(self.listview)
+        vlayout.addWidget(self.databaseScroll)
         vlayout.addWidget(listButton)
         hlayout.addWidget(self.Neuron)
         hlayout.addWidget(self.Epoch)
@@ -111,6 +113,54 @@ class FilterTestWidget(QWidget):
         self.plot.replot()
         self.plot.do_autoscale()
         
+    def but_clicked(self):
+        '''
+        when a name button is clicked, I iterate over the model, 
+        find the neuron with this name, and set the treeviews current item
+        '''
+        name = self.listview.sender().text()
+        print "BUTTON CLICKED:", name
+
+
+class databaseListModel(QTreeWidget):
+    def __init__(self):
+        QTreeWidget.__init__(self)
+        #self.widget = QTreeWidget(self)
+        header = QTreeWidgetItem(["Database","Neuron","Epoch","Data"])
+
+        self.setHeaderItem(header)   
+        #Another alternative is setHeaderLabels(["Tree","First",...])
+        self.Db = Dbase()
+                
+        
+                
+        root = QTreeWidgetItem(self)
+        root.setText(0, "Neuron Data")
+        
+        neurons = []
+        epochs = []
+        top = self.Db.GetTree()      
+        for countNeuro,neuron in enumerate(top):
+            
+            neurons = QTreeWidgetItem(root) 
+            neurons.setText(1, neuron)
+            
+            #singleEpoch = []
+            neuronTree = self.Db.GetTree(neuron)
+            for countEpoch, epoch in enumerate(neuronTree):
+                
+                singleEpoch = QTreeWidgetItem(neurons) 
+                singleEpoch.setText(2, epoch)
+                
+                epochs.append(singleEpoch)
+                
+                #singleData = []
+                epochTree = self.Db.GetTree( neuron + '.' + epoch)
+                for countData,data in enumerate(epochTree):
+                    singleData = QTreeWidgetItem(singleEpoch) 
+                    singleData.setText(3, data)
+
+   
         
 class MyListModel(QAbstractListModel): 
     def __init__(self, datain, parent=None, *args): 
@@ -141,8 +191,14 @@ class Dbase():
         
         self.Data.ImportAllData(NeuronName, Directory)        
         
-    def GetTree(self, NeuronName):
-        return self.Data.GetChildList(NeuronName)
+    def GetTree(self, NeuronName = None):
+        
+        if NeuronName == None:
+            tree = self.Data.GetChildList()
+        else:
+            tree = self.Data.GetChildList(NeuronName)
+        
+        return tree
         
 
 class FindFile(DataSet):

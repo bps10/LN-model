@@ -193,11 +193,14 @@ class Database():
                     self.AddData2Database(name, np.array([ Data ], dtype=str), NeuronName + '.' + FileName + '.params')
 
 
-    def GetChildList(self, FILE, parent = None):
-        if parent == None:
+    def GetChildList(self, FILE = None, parent = None):
+        if FILE == None:
+            ChildList = self.file.root.__members__
+            
+        if FILE != None and parent == None:
             foo = 'self.file.root.' + FILE
             ChildList = eval(foo + '.__members__')
-        else:
+        elif FILE != None and parent != None:
             foo = 'self.file.root.' + parent + '.' + FILE
             ChildList = eval(foo + '.__members__')
             
