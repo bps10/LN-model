@@ -123,7 +123,8 @@ class Database():
             self.OpenMatlabData(FileName, Directory, NeuronName)
             self.ImportDataFromMatlab(FileName, NeuronName)
 
-        self.AddGitVersion(NeuronName, FileName + '_InitialImport')
+        self.AddGitVersion(NeuronName, NeuronName + '_InitialImport')
+        self.file.flush()
         self.CloseDatabase()
 
 

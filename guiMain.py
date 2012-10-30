@@ -58,21 +58,10 @@ class FilterTestWidget(QWidget):
         self.Epoch      = QLineEdit("Epoch name")
         self.QueryName  = QLineEdit("Data selection")
         
-        self.tree = self.data.GetTree('Oct0212Bc8')        
-
-        #DatabaseList = QListView().setModel(self.tree)
-        #DatabaseList.QListView.setViewMode(QListView.ListMode) 
         # create table
         self.databaseScroll = databaseListModel()
-        
-        list_data = self.tree
-        listmodel = MyListModel(list_data, self)
-        self.listview = QListView()
-        self.listview.setModel(listmodel)
-
-        
          
-        listButton = QPushButton(u"Change List")
+        listButton = QPushButton(u"Update List")
         button = QPushButton(u"New Query: %s" % title)
         #itemDoubleClicked
         self.connect(listButton, SIGNAL('clicked()'), self.but_clicked)
@@ -95,9 +84,6 @@ class FilterTestWidget(QWidget):
         
         self.update_curve()
         
-    
-    def dud(self):
-        print self.listview.rootIndex().row()
         
     def query_database(self):
         neuronname = str(self.Neuron.displayText())
@@ -118,9 +104,15 @@ class FilterTestWidget(QWidget):
         when a name button is clicked, I iterate over the model, 
         find the neuron with this name, and set the treeviews current item
         '''
-        name = self.listview.sender().text()
-        print "BUTTON CLICKED:", name
-
+        
+        item = self.databaseScroll.selectedItems()[0]
+        index = self.databaseScroll.currentIndex()
+        print "item", item        
+        print "row: ", index.row()
+        print "column: ", index.column()
+        print "parent: ", index.parent() 
+        print "data: ", index.data().toPyObject() 
+        
 
 class databaseListModel(QTreeWidget):
     def __init__(self):
@@ -131,8 +123,6 @@ class databaseListModel(QTreeWidget):
         self.setHeaderItem(header)   
         #Another alternative is setHeaderLabels(["Tree","First",...])
         self.Db = Dbase()
-                
-        
                 
         root = QTreeWidgetItem(self)
         root.setText(0, "Neuron Data")
@@ -207,7 +197,7 @@ class FindFile(DataSet):
     NeuronName = StringItem("NeuronName")
     
     
-class TestWindow(QMainWindow):
+class Window(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
         self.setWindowTitle("Neuron Database")
@@ -271,7 +261,7 @@ def main():
     import scipy.signal as sps, scipy.ndimage as spi
     
     app = QApplication([])
-    win = TestWindow()
+    win = Window()
     
 
     win.add_plot(lambda x: spi.gaussian_filter1d(x, 1.), "1")
