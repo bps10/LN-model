@@ -7,9 +7,8 @@ Created on Fri Oct 26 13:30:48 2012
 from guidata.dataset.qtwidgets import DataSetShowGroupBox
 import Database as Db
 from guidata.qt.QtGui import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                              QMainWindow, QLineEdit, QListView, QTreeWidget, QTreeWidgetItem)
-from guidata.qt.QtCore import (SIGNAL, QAbstractListModel, QModelIndex, QVariant, 
-                               Qt)
+                              QMainWindow, QLineEdit, QTreeWidget, QTreeWidgetItem)
+from guidata.qt.QtCore import (SIGNAL, QString)
 from guidata.dataset.dataitems import StringItem, DirectoryItem
 from guidata.dataset.datatypes import DataSet
 from guidata.qthelpers import create_action, add_actions, get_std_icon
@@ -22,7 +21,7 @@ from guiqwt.plot import PlotManager
 from guiqwt.builder import make
 from guidata.configtools import get_icon
 #---
-
+#from guiDesign import Ui_DockWidget
 
     
 class FilterTestWidget(QWidget):
@@ -63,7 +62,8 @@ class FilterTestWidget(QWidget):
          
         listButton = QPushButton(u"Update List")
         button = QPushButton(u"New Query: %s" % title)
-        #itemDoubleClicked
+
+        #self.connect(self.databaseScroll, SIGNAL(QString.fromUtf8("entered(QModelIndex)")), self.update_curve)
         self.connect(listButton, SIGNAL('clicked()'), self.but_clicked)
         self.connect(button, SIGNAL('clicked()'), self.query_database)
 
@@ -150,23 +150,6 @@ class databaseListModel(QTreeWidget):
                     singleData = QTreeWidgetItem(singleEpoch) 
                     singleData.setText(3, data)
 
-   
-        
-class MyListModel(QAbstractListModel): 
-    def __init__(self, datain, parent=None, *args): 
-        """ datain: a list where each item is a row
-        """
-        QAbstractListModel.__init__(self, parent, *args) 
-        self.listdata = datain
- 
-    def rowCount(self, parent=QModelIndex()): 
-        return len(self.listdata) 
- 
-    def data(self, index, role): 
-        if index.isValid() and role == Qt.DisplayRole:
-            return QVariant(self.listdata[index.row()])
-        else: 
-            return QVariant()
             
 class Dbase():
     def __init__(self):
@@ -201,7 +184,11 @@ class Window(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
         self.setWindowTitle("Neuron Database")
-        self.setWindowIcon(get_icon('guiqwt.png'))
+        self.setWindowIcon(get_icon('NeitzLab.png'))
+        
+        #self.addDockWidget( Ui_DockWidget() )
+        #self.ui = 
+        #self.setupUi(self)
         
         file_menu = self.menuBar().addMenu("File")
         quit_action = create_action(self, "Quit",
