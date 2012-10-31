@@ -66,6 +66,8 @@ class FilterTestWidget(QWidget):
         #itemDoubleClicked
         self.connect(listButton, SIGNAL('clicked()'), self.but_clicked)
         self.connect(button, SIGNAL('clicked()'), self.query_database)
+        self.connect(self.databaseScroll, SIGNAL("doubleClicked(QModelIndex)"), 
+                     self.double_clicked)
 
         vlayout = QVBoxLayout()
         hlayout = QHBoxLayout()
@@ -89,12 +91,15 @@ class FilterTestWidget(QWidget):
         neuronname = str(self.Neuron.displayText())
         epochname = str(self.Epoch.displayText())
         dataname = str(self.QueryName.displayText())
-        self.y = self.data.Query(NeuronName = neuronname, Epoch = epochname, DataName = dataname)
-        self.update_curve()
-
+        try:
+            self.y = self.data.Query(NeuronName = neuronname, Epoch = epochname, DataName = dataname)
+            self.update_curve()
+        except :
+            pass
         
     def update_curve(self):
         #---Update curve
+
         self.curve_item.set_data(self.x, self.y)
         self.plot.replot()
         self.plot.do_autoscale()
@@ -105,13 +110,35 @@ class FilterTestWidget(QWidget):
         find the neuron with this name, and set the treeviews current item
         '''
         
-        item = self.databaseScroll.selectedItems()[0]
-        index = self.databaseScroll.currentIndex()
-        print "item", item        
-        print "row: ", index.row()
-        print "column: ", index.column()
-        print "parent: ", index.parent() 
-        print "data: ", index.data().toPyObject() 
+        self.databaseScroll.refreshTree()
+    
+    def double_clicked(self):
+        '''
+        when a name button is clicked, iterate over the model, 
+        find the neuron with this name, and set the treeviews current item
+        '''
+        
+        index = self.databaseScroll.currentIndex() 
+        #database = index.parent().parent().parent().row()
+        neuron = index.parent().parent().row()
+        epoch = index.parent().row()
+        data = index.row()
+        
+        if index.column() == 3:
+            print 'here'
+            
+            
+            self.query_database()
+            try:
+                n= self.databaseScroll.neuronName[neuron]
+                e = self.databaseScroll.epochName[epoch]
+                d = self.databaseScroll.dataName[data + 1] # account for git dataName
+                print n, e, d
+                self.y = self.data.Query(NeuronName = n, Epoch = e, DataName = d)
+                self.update_curve()
+            except :
+                pass
+            
         
 
 class databaseListModel(QTreeWidget):
@@ -123,34 +150,49 @@ class databaseListModel(QTreeWidget):
         self.setHeaderItem(header)   
         #Another alternative is setHeaderLabels(["Tree","First",...])
         self.Db = Dbase()
-                
+        self.constructTree()
+        
+    def constructTree(self):        
         root = QTreeWidgetItem(self)
         root.setText(0, "Neuron Data")
         
-        neurons = []
-        epochs = []
+        self.neuronName = []
+        self.epochName = []
+        self.dataName = []
+        
         top = self.Db.GetTree()      
         for countNeuro,neuron in enumerate(top):
             
             neurons = QTreeWidgetItem(root) 
             neurons.setText(1, neuron)
             
-            #singleEpoch = []
+            self.neuronName.append(neuron)
+
             neuronTree = self.Db.GetTree(neuron)
             for countEpoch, epoch in enumerate(neuronTree):
                 
                 singleEpoch = QTreeWidgetItem(neurons) 
                 singleEpoch.setText(2, epoch)
                 
-                epochs.append(singleEpoch)
+                self.epochName.append(epoch)
                 
-                #singleData = []
                 epochTree = self.Db.GetTree( neuron + '.' + epoch)
                 for countData,data in enumerate(epochTree):
                     singleData = QTreeWidgetItem(singleEpoch) 
                     singleData.setText(3, data)
-
-   
+                    
+                    if countEpoch == 0:
+                        self.dataName.append(data)
+        
+        def refreshTree(self):
+            self.constructTree()
+            self.update()
+            
+        '''
+        print self.neuronName
+        print self.epochName 
+        print self.dataName
+        '''
         
 class MyListModel(QAbstractListModel): 
     def __init__(self, datain, parent=None, *args): 
@@ -243,7 +285,10 @@ class Window(QMainWindow):
         widget.setup_widget(title)
         self.centralWidget().layout().addWidget(widget)
         #---Register plot to manager
+        
         self.manager.add_plot(widget.plot)
+        #self.manager.add_panel(widget.databaseScroll)
+        #self.manager.add_tool()        
         #---
                        
         
