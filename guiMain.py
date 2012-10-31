@@ -123,17 +123,15 @@ class FilterTestWidget(QWidget):
         neuron = index.parent().parent().row()
         epoch = index.parent().row()
         data = index.row()
-        
+        print neuron, epoch, data
         if index.column() == 3:
-            print 'here'
-            
-            
-            self.query_database()
+            #self.query_database()
             try:
+                #print 'here'
                 n= self.databaseScroll.neuronName[neuron]
                 e = self.databaseScroll.epochName[epoch]
-                d = self.databaseScroll.dataName[data + 1] # account for git dataName
-                print n, e, d
+                d = self.databaseScroll.dataName[data] # account for git dataName
+                #print n, e, d
                 self.y = self.data.Query(NeuronName = n, Epoch = e, DataName = d)
                 self.update_curve()
             except :
@@ -181,7 +179,7 @@ class databaseListModel(QTreeWidget):
                     singleData = QTreeWidgetItem(singleEpoch) 
                     singleData.setText(3, data)
                     
-                    if countEpoch == 0:
+                    if countEpoch == 1:
                         self.dataName.append(data)
         
         def refreshTree(self):
@@ -190,7 +188,7 @@ class databaseListModel(QTreeWidget):
             
         '''
         print self.neuronName
-        print self.epochName 
+        print self.epochName
         print self.dataName
         '''
         
