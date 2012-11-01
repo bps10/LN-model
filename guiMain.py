@@ -7,7 +7,7 @@ Created on Fri Oct 26 13:30:48 2012
 from guidata.dataset.qtwidgets import DataSetShowGroupBox
 import Database as Db
 from guidata.qt.QtGui import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                              QMainWindow, QLineEdit, QListView, QTreeWidget, QTreeWidgetItem)
+                              QMainWindow, QLineEdit, QTreeWidget, QTreeWidgetItem)
 from guidata.qt.QtCore import (SIGNAL, QAbstractListModel, QModelIndex, QVariant, 
                                Qt)
 from guidata.dataset.dataitems import StringItem, DirectoryItem
@@ -61,7 +61,7 @@ class FilterTestWidget(QWidget):
         # create table
         self.databaseScroll = databaseListModel()
          
-        listButton = QPushButton(u"Update List")
+        listButton = QPushButton(u"Refresh list")
         button = QPushButton(u"New Query: %s" % title)
         #itemDoubleClicked
         self.connect(listButton, SIGNAL('clicked()'), self.but_clicked)
@@ -109,7 +109,6 @@ class FilterTestWidget(QWidget):
         when a name button is clicked, I iterate over the model, 
         find the neuron with this name, and set the treeviews current item
         '''
-        
         self.databaseScroll.refreshTree()
     
     def double_clicked(self):
@@ -123,7 +122,7 @@ class FilterTestWidget(QWidget):
         neuron = index.parent().parent().row()
         epoch = index.parent().row()
         data = index.row()
-        print neuron, epoch, data
+        #print neuron, epoch, data
         if index.column() == 3:
             #self.query_database()
             try:
@@ -157,6 +156,9 @@ class databaseListModel(QTreeWidget):
         self.neuronName = []
         self.epochName = []
         self.dataName = []
+        self.neurons = []
+        self.singleEpoch = []
+        self.singleData = []
         
         top = self.Db.GetTree()      
         for countNeuro,neuron in enumerate(top):
@@ -182,9 +184,9 @@ class databaseListModel(QTreeWidget):
                     if countEpoch == 1:
                         self.dataName.append(data)
         
-        def refreshTree(self):
-            self.constructTree()
-            self.update()
+    def refreshTree(self): 
+        self.constructTree()
+        self.update()
             
         '''
         print self.neuronName
