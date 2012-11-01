@@ -35,11 +35,9 @@ class FilterTestWidget(QWidget):
     def __init__(self, parent, func):
         QWidget.__init__(self, parent)
         self.data = Dbase()
-        self.y = self.data.Query()
-        self.x = np.arange(0, len(self.y))
+        self.y = np.arange(0,100) #self.data.Query()
+        self.x = np.arange(0,100) #np.arange(0, len(self.y))
         self.setMinimumSize(600, 650)
-        #self.x = x
-        #self.y = y
         self.func = func
         #---guiqwt related attributes:
         self.plot = None
@@ -93,6 +91,7 @@ class FilterTestWidget(QWidget):
         dataname = str(self.QueryName.displayText())
         try:
             self.y = self.data.Query(NeuronName = neuronname, Epoch = epochname, DataName = dataname)
+            self.x = np.arange(0, len(self.y))
             self.update_curve()
         except :
             pass
@@ -132,6 +131,7 @@ class FilterTestWidget(QWidget):
                 d = self.databaseScroll.dataName[data] # account for git dataName
                 #print n, e, d
                 self.y = self.data.Query(NeuronName = n, Epoch = e, DataName = d)
+                self.x = np.arange(0, len(self.y))
                 self.update_curve()
             except :
                 pass
@@ -147,7 +147,10 @@ class databaseListModel(QTreeWidget):
         self.setHeaderItem(header)   
         #Another alternative is setHeaderLabels(["Tree","First",...])
         self.Db = Dbase()
-        self.constructTree()
+        try :
+            self.constructTree()
+        except :
+            pass
         
     def constructTree(self):        
         root = QTreeWidgetItem(self)
@@ -256,7 +259,7 @@ class Window(QMainWindow):
         # Edit menu
         self.importData = DataSetShowGroupBox("Neuron Data",
                                              FindFile, comment='')
-        
+        #self.x = np.arange(0, len(self.y))
         edit_menu = self.menuBar().addMenu("Edit")
         editparam1_action = create_action(self, "Add dataset",
                                           triggered=self.add_newData)
@@ -303,14 +306,13 @@ class Window(QMainWindow):
 def main():
     """Testing this simple Qt/guiqwt example"""
     from guidata.qt.QtGui import QApplication
-    import scipy.signal as sps, scipy.ndimage as spi
     
     app = QApplication([])
     win = Window()
     
 
-    win.add_plot(lambda x: spi.gaussian_filter1d(x, 1.), "1")
-    win.add_plot(sps.wiener, "2")
+    win.add_plot(None, "1")
+    win.add_plot(None, "2")
     #---Setup window
     win.setup_window()
     #---
