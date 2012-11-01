@@ -4,7 +4,7 @@ import numpy as np
 import glob as glob
 import git as git
 import tables as tables
-
+import os
 
 class Database():
 
@@ -111,8 +111,11 @@ class Database():
 
 
 
-    def ImportAllData(self, NeuronName, Directory):
-
+    def ImportAllData(self, NeuronName, Directory, GitDirectory = None):
+        
+        if GitDirectory == None:
+            GitDirectory = os.getcwd()
+            
         #self.OpenDatabase(Name + '.h5')
         self.getAllFiles(Directory)
         self.CreateGroup(NeuronName)
@@ -123,7 +126,7 @@ class Database():
             self.OpenMatlabData(FileName, Directory, NeuronName)
             self.ImportDataFromMatlab(FileName, NeuronName)
 
-        self.AddGitVersion(NeuronName, NeuronName + '_InitialImport')
+        self.AddGitVersion(NeuronName, NeuronName + '_InitialImport', GitDirectory)
         self.file.flush()
         self.CloseDatabase()
 
@@ -223,9 +226,9 @@ class Database():
         self.GitRepo = git.Repo(WorkingDir)
 
 
-    def AddGitVersion(self, NeuronName, Action):
+    def AddGitVersion(self, NeuronName, Action, GitDirectory):
 
-        self.GetGitRepo()
+        self.GetGitRepo(WorkingDir = GitDirectory)
        
         if self.Exists('git', NeuronName) == False:
 
